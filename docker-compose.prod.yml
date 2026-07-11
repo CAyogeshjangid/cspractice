@@ -1,0 +1,41 @@
+# Production overlay: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# HTTPS terminated by Caddy (pre-launch checklist); api scaled to 2 replicas —
+# rate limiting and sessions are Redis-backed, so replicas are interchangeable (C4).
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api, web]
+    restart: unless-stopped
+
+  api:
+    ports: []  # only Caddy is exposed
+    deploy:
+      replicas: 2
+    volumes:
+      - docstore:/data   # STORAGE_DIR=/data (generated documents)
+    restart: unless-stopped
+
+  worker:
+    volumes:
+      - docstore:/data
+    restart: unless-stopped
+
+  web:
+    ports: []
+    restart: unless-stopped
+
+  postgres:
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  docstore:

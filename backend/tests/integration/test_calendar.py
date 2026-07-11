@@ -336,3 +336,22 @@ async def test_calendar_rbac_and_isolation(firm, tmp_path, make_client) -> None:
     export = await firm.viewer.get(f"/api/v1/companies/{cid}/calendar/export?fy={FY}")
     assert export.status_code == 200
     assert export.headers["content-type"].startswith("application/vnd.openxmlformats")
+
+async def test_calendar_word_export(firm, tmp_path) -> None:
+    """PRD §4.5 Word export — stamped with rule versions (export fidelity §10)."""
+    import io
+
+    from docx import Document
+
+    cid = await setup_calendar(firm, tmp_path)
+    res = await firm.viewer.get(f"/api/v1/companies/{cid}/calendar/export-word?fy={FY}")
+    assert res.status_code == 200
+    doc = Document(io.BytesIO(res.content))
+    text = "\n".join(p.text for p in doc.paragraphs)
+    table_text = "\n".join(
+        cell.text for table in doc.tables for row in table.rows for cell in row.cells
+    )
+    assert "Golden Fixture Pvt Ltd" in text
+    assert "TEST-ONLY-AGM30 (v1)" in table_text
+    assert "TEST-ONLY citation A" in table_text
+    assert "2026-10-30" in table_text

@@ -20,7 +20,7 @@ email reminders, and Word document generation.
 | M4 Rules persistence + compliance calendar | ✅ |
 | M5 Reminders (arq worker, SMTP/Resend, dead-letter) | ✅ |
 | M6 Document generation (docxtpl, validation stamps, library) | ✅ |
-| M7 Hardening + pilot readiness | pending |
+| M7 Hardening (backup/restore, prod compose, runbook, prelaunch tests) | ✅ code-complete — staging ZAP + E2E pending |
 
 ## Development
 

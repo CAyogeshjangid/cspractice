@@ -186,6 +186,56 @@ async def export_calendar(
     )
 
 
+@router.get("/companies/{company_id}/calendar/export-word")
+async def export_calendar_word(
+    company_id: uuid.UUID,
+    fy: int,
+    user: User = Depends(require_role(Role.viewer)),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """Word export of the calendar per entity (PRD §4.5). Stamped with
+    generation time and rule versions — export fidelity per PRD §10."""
+    company = await _owned_company(session, user, company_id)
+    rows = await cal_repo.rows_with_trace(session, user.firm_id, company_id, fy)
+
+    from datetime import datetime, timezone
+
+    from docx import Document
+
+    doc = Document()
+    doc.add_heading(f"Compliance Calendar — {company.name}", level=1)
+    doc.add_paragraph(f"CIN: {company.cin} · FY {fy - 1}-{str(fy)[2:]}")
+    table = doc.add_table(rows=1, cols=7)
+    header = table.rows[0].cells
+    for i, title in enumerate(
+        ["Category", "Obligation", "Form", "Due date", "Status", "Rule (version)", "Citation"]
+    ):
+        header[i].text = title
+    for r in rows:
+        out = _row_out(*r)
+        cells = table.add_row().cells
+        cells[0].text = out.category
+        cells[1].text = out.obligation_name + (
+            f" [{out.occurrence_label}]" if out.occurrence_label else ""
+        )
+        cells[2].text = out.form_number or "—"
+        cells[3].text = str(out.effective_due_date or "needs review")
+        cells[4].text = out.status.value + (" ⚑" if out.needs_review else "")
+        cells[5].text = f"{out.rule_code} (v{out.rule_version})"
+        cells[6].text = out.citation
+    doc.add_paragraph(
+        f"Generated {datetime.now(timezone.utc).isoformat(timespec='seconds')} — every "
+        "date traces to the versioned rules dataset shown per row."
+    )
+    buf = io.BytesIO()
+    doc.save(buf)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="calendar_fy{fy}.docx"'},
+    )
+
+
 @router.get("/companies/{company_id}/fy-attributes/{fy}")
 async def get_fy_attributes(
     company_id: uuid.UUID,

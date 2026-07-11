@@ -1,0 +1,12 @@
+# Set your domain before deploy. Caddy provisions/renews TLS automatically.
+{$PRAXIS_DOMAIN:praxis.example.com} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:5173
+	}
+}
