@@ -12,6 +12,7 @@ from redis.asyncio import Redis
 from app.config import get_settings
 from app.routes import (
     auth,
+    calendar,
     companies,
     directors,
     health,
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     app.include_router(directors.router)
     app.include_router(shareholders.router)
     app.include_router(taxonomies.router)
+    app.include_router(calendar.router)
     app.include_router(team.router)
     return app
 

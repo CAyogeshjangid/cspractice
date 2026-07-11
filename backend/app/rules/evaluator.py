@@ -82,6 +82,7 @@ class CalendarRowDraft:
     fy: int
     occurrence_label: str = ""
     subject_type: str = "company"
+    subject_id: Any = None  # filled by the service for per-director rows (G6)
     computed_due_date: date | None = None
     extension_date: date | None = None
     extension_ref: str | None = None
