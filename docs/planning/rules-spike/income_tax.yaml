@@ -1,0 +1,87 @@
+# ============================================================================
+# SPIKE ARTIFACT — SCHEMA VALIDATION ONLY. NOT A SIGNED RULES DATASET.
+# All dates/thresholds illustrative and UNVERIFIED. signoff: null throughout.
+# Findings cross-referenced [G1]..[G8] — see ../rules-schema-spike.md.
+# ============================================================================
+
+- code: IT-ITR6
+  category: income_tax
+  obligation_name: Income tax return (company)
+  form_number: ITR-6
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+  anchor: fixed_date
+  offset_spec: { type: fixed, month: 10, day: 31, year_ref: fy_end_year }
+  variants:
+    # Transfer-pricing cases get 30 Nov — the TP flag is unobservable from
+    # master data [G1]; predicate must evaluate UNKNOWN → needs_review.
+    - when:
+        all:
+          - { attr: has_transfer_pricing, op: eq, value: true }
+      offset_spec: { type: fixed, month: 11, day: 30, year_ref: fy_end_year }
+  source_citation: "IT Act 1961 s.139(1) [UNVERIFIED — spike]"
+  signoff: null
+  # Extension stressor: CBDT frequently extends this date, sometimes only
+  # for a class (e.g. TP cases). rule_extension.applies_predicate handles
+  # this — confirms that column is necessary, not gold-plating.
+  # year_ref note: due date falls in the FY AFTER the one being reported.
+  # Convention needed: a row belongs to the FY of the PERIOD, even when its
+  # due date lands in the next FY [G8].
+
+- code: IT-TAR
+  category: income_tax
+  obligation_name: Tax audit report
+  form_number: 3CA/3CD
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - any:
+          - { attr: turnover, op: gte, value: 10000000 }   # s.44AB threshold [G1]
+          - { attr: turnover, op: eq, value: unknown }     # unknown → needs_review
+  anchor: fixed_date
+  offset_spec: { type: fixed, month: 9, day: 30, year_ref: fy_end_year }
+  source_citation: "IT Act 1961 s.44AB [UNVERIFIED — spike; thresholds have several
+    carve-outs (cash-receipt %, 44AD presumption) that the predicate language
+    cannot fully express — acceptable: encode the conservative superset and
+    let the professional mark rows not_applicable]"
+  signoff: null
+
+- code: IT-TDS-Q
+  category: income_tax
+  obligation_name: Quarterly TDS returns
+  form_number: 24Q/26Q
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - { attr: has_tan, op: eq, value: unknown }          # [G1]
+  anchor: fixed_date
+  occurrences:                                             # [G7] four per FY
+    - { label: Q1, offset_spec: { type: fixed, month: 7,  day: 31, year_ref: fy_start_year } }
+    - { label: Q2, offset_spec: { type: fixed, month: 10, day: 31, year_ref: fy_start_year } }
+    - { label: Q3, offset_spec: { type: fixed, month: 1,  day: 31, year_ref: fy_end_year } }
+    - { label: Q4, offset_spec: { type: fixed, month: 5,  day: 31, year_ref: fy_end_year } }
+  source_citation: "IT Rules r.31A [UNVERIFIED — spike]"
+  signoff: null
+  # [G7] Multi-occurrence. [G8] Q4 due date (31 May) falls AFTER fy_end —
+  # the row must still belong to the reported FY. Both constructs required.
+
+- code: IT-ADVANCE-TAX
+  category: income_tax
+  obligation_name: Advance tax instalments
+  form_number: null
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+  anchor: fixed_date
+  occurrences:                                             # [G7]
+    - { label: "15%",  offset_spec: { type: fixed, month: 6,  day: 15, year_ref: fy_start_year } }
+    - { label: "45%",  offset_spec: { type: fixed, month: 9,  day: 15, year_ref: fy_start_year } }
+    - { label: "75%",  offset_spec: { type: fixed, month: 12, day: 15, year_ref: fy_start_year } }
+    - { label: "100%", offset_spec: { type: fixed, month: 3,  day: 15, year_ref: fy_end_year } }
+  source_citation: "IT Act 1961 s.211 [UNVERIFIED — spike]"
+  signoff: null
+  # Included as a scope probe: payment obligations (vs. filings) may be
+  # deliberately out of Phase 1 — if so, the DATASET decides that, and the
+  # schema needs nothing extra. Flagging so the exclusion is a written
+  # editorial decision, not an accident.

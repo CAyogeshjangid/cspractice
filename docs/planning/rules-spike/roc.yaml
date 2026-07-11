@@ -1,0 +1,199 @@
+# ============================================================================
+# SPIKE ARTIFACT — SCHEMA VALIDATION ONLY. NOT A SIGNED RULES DATASET.
+# Every date, threshold, and citation below is illustrative from general
+# knowledge and MUST be verified by the named professional before any entry
+# is promoted into a signed dataset. signoff is deliberately null everywhere;
+# the loader must refuse entries with signoff: null outside tests.
+# ============================================================================
+# Purpose: push real ROC obligations through the schema proposed in
+# CLAUDE_CODE_INSTRUCTIONS.md §5/§6 and record where the schema breaks.
+# Findings are cross-referenced as [G1]..[G6] — see ../rules-schema-spike.md.
+
+- code: ROC-AGM
+  category: roc
+  obligation_name: Hold Annual General Meeting
+  form_number: null            # not a filing; a statutory event other rules anchor on
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - { attr: category, op: ne, value: opc }        # OPC exempt from AGM
+  anchor: fy_end
+  offset_spec: { type: offset, unit: months, amount: 6 }
+  variants:
+    # First AGM: within 9 months of first FY end — needs incorporation_date
+    # comparison inside applicability. Expressible, but see [G5]: the "which
+    # FY is the company's first" derivation must be an engine primitive.
+    - when:
+        all:
+          - { attr: is_first_fy, op: eq, value: true }   # DERIVED attr [G5]
+      offset_spec: { type: offset, unit: months, amount: 9 }
+  source_citation: "Companies Act 2013 s.96 [UNVERIFIED — spike]"
+  signoff: null
+
+- code: ROC-AOC4
+  category: roc
+  obligation_name: Filing of financial statements
+  form_number: AOC-4
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+  anchor: agm_date
+  offset_spec: { type: offset, unit: days, amount: 30 }
+  source_citation: "Companies Act 2013 s.137(1) [UNVERIFIED — spike]"
+  signoff: null
+  # Clean fit. Note: if agm_date unset → needs_review row, per engine rule.
+
+- code: ROC-AOC4-XBRL
+  category: roc
+  obligation_name: Filing of financial statements (XBRL)
+  form_number: AOC-4 XBRL
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - any:
+          - { attr: is_listed, op: eq, value: true }
+          - { attr: paidup_capital, op: gte, value: 50000000 }      # ₹5 cr
+          - { attr: turnover, op: gte, value: 1000000000 }          # ₹100 cr [G1]
+  anchor: agm_date
+  offset_spec: { type: offset, unit: days, amount: 30 }
+  source_citation: "Companies (Filing in XBRL) Rules 2015 [UNVERIFIED — spike]"
+  signoff: null
+  # [G1] `turnover` does not exist on the Phase 1 company master.
+  # [G2] Mutually exclusive with ROC-AOC4 — schema has no way to say
+  #      "XBRL supersedes plain AOC-4"; without it both rows are emitted.
+
+- code: ROC-MGT7
+  category: roc
+  obligation_name: Annual return
+  form_number: MGT-7
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - { attr: is_small_company, op: eq, value: false }   # DERIVED attr [G1][G5]
+      - { attr: category, op: ne, value: opc }
+  anchor: agm_date
+  offset_spec: { type: offset, unit: days, amount: 60 }
+  source_citation: "Companies Act 2013 s.92 [UNVERIFIED — spike]"
+  signoff: null
+
+- code: ROC-MGT7A
+  category: roc
+  obligation_name: Annual return (OPC / small company)
+  form_number: MGT-7A
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - any:
+          - { attr: category, op: eq, value: opc }
+          - { attr: is_small_company, op: eq, value: true }
+  anchor: agm_date          # OPC has no AGM → anchor fallback needed [G3]
+  offset_spec: { type: offset, unit: days, amount: 60 }
+  source_citation: "Companies Act 2013 s.92, MGT rules [UNVERIFIED — spike]"
+  signoff: null
+  # [G3] For OPC the 60 days run from a deemed date (no AGM). Single-anchor
+  #      enum cannot express "agm_date, else fy_end + 6 months". Proposed:
+  #      anchor as ordered fallback list.
+  # [G5] is_small_company = paidup ≤ ₹4cr AND turnover ≤ ₹40cr AND not
+  #      holding/subsidiary/s.8 — a derived predicate over attributes the
+  #      master partly lacks [G1]. Must resolve to UNKNOWN (→ needs_review),
+  #      never silently false.
+
+- code: ROC-ADT1
+  category: roc
+  obligation_name: Notice of auditor appointment
+  form_number: ADT-1
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+  anchor: agm_date
+  offset_spec: { type: offset, unit: days, amount: 15 }
+  source_citation: "Companies Act 2013 s.139(1) [UNVERIFIED — spike]"
+  signoff: null
+  # Strictly only in a year an auditor is appointed/ratified — an event
+  # condition [G4]. Acceptable Phase 1 compromise: emit yearly with a
+  # "confirm applicability" note; document the compromise in the rule.
+
+- code: ROC-DIR3KYC
+  category: roc
+  obligation_name: Director KYC
+  form_number: DIR-3 KYC
+  applicability:
+    all:
+      - { attr: subject, op: eq, value: director }   # [G6] per-DIRECTOR row
+      - { attr: din_allocated_on_or_before, op: eq, value: fy_end }
+  anchor: fixed_date
+  offset_spec: { type: fixed, month: 9, day: 30, year_ref: fy_end_year }
+  source_citation: "Companies (Appointment... of Directors) Rules r.12A [UNVERIFIED — spike]"
+  signoff: null
+  # [G6] Calendar rows are per-company; this obligation is per-director.
+  #      Either model subject_type on calendar_row (company|director) or
+  #      emit one company row aggregating its directors. Decide before M4.
+
+- code: ROC-DPT3
+  category: roc
+  obligation_name: Return of deposits / exempted deposits
+  form_number: DPT-3
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - { attr: has_outstanding_receipts, op: eq, value: unknown }  # [G1]
+  anchor: fixed_date
+  offset_spec: { type: fixed, month: 6, day: 30, year_ref: fy_end_year }
+  source_citation: "Companies (Acceptance of Deposits) Rules r.16/16A [UNVERIFIED — spike]"
+  signoff: null
+  # [G1] Applicability depends on outstanding loans/receipts — unobservable
+  #      from master data. Must emit as needs_review ("confirm applicability"),
+  #      which requires tri-state predicate evaluation (true/false/UNKNOWN).
+
+- code: ROC-MSME1
+  category: roc
+  obligation_name: Half-yearly return of dues to MSME suppliers
+  form_number: MSME-1
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - { attr: has_msme_dues_over_45d, op: eq, value: unknown }    # [G1]
+  anchor: fixed_date
+  occurrences:                                                      # [G7]
+    - { label: "Apr–Sep", offset_spec: { type: fixed, month: 10, day: 31, year_ref: fy_start_year } }
+    - { label: "Oct–Mar", offset_spec: { type: fixed, month: 4, day: 30, year_ref: fy_end_year } }
+  source_citation: "MSME Development Act s.9; MCA order 22-01-2019 [UNVERIFIED — spike]"
+  signoff: null
+  # [G7] TWO due dates per FY. Current schema = one row per rule per FY.
+  #      Proposed: `occurrences[]`; calendar_row gains occurrence_label.
+
+- code: ROC-BEN2
+  category: roc
+  obligation_name: Return of significant beneficial owners
+  form_number: BEN-2
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+  anchor: event                                                     # [G4]
+  offset_spec: { type: offset, unit: days, amount: 30, from: ben1_receipt }
+  source_citation: "Companies (SBO) Rules r.4 [UNVERIFIED — spike]"
+  signoff: null
+  # [G4] Event-anchored: cannot be computed from FY master data at all.
+  #      Correct Phase 1 answer: EXCLUDE event-anchored rules from the
+  #      dataset (they belong to Phase 3 event wizards). Kept here to prove
+  #      the schema must be able to say so explicitly (e.g. phase: 3),
+  #      rather than the omission being silent.
+
+- code: ROC-CSR2
+  category: roc
+  obligation_name: Report on Corporate Social Responsibility
+  form_number: CSR-2
+  applicability:
+    all:
+      - { attr: entity_type, op: eq, value: company }
+      - any:
+          - { attr: net_worth, op: gte, value: 5000000000 }     # ₹500 cr [G1]
+          - { attr: turnover, op: gte, value: 10000000000 }     # ₹1000 cr [G1]
+          - { attr: net_profit, op: gte, value: 50000000 }      # ₹5 cr [G1]
+  anchor: agm_date
+  offset_spec: { type: offset, unit: days, amount: 30 }   # filed with/after AOC-4 [VERIFY mechanics]
+  source_citation: "Companies Act 2013 s.135; CSR Rules [UNVERIFIED — spike]"
+  signoff: null
+  # [G1] Needs net_worth / turnover / net_profit — none on the master.
+  #      Also note s.135 tests the PRECEDING FY's figures → applicability
+  #      predicates need per-FY attribute addressing (attr@fy-1), see [G8].

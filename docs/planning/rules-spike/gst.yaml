@@ -1,0 +1,61 @@
+# ============================================================================
+# SPIKE ARTIFACT — SCHEMA VALIDATION ONLY. NOT A SIGNED RULES DATASET.
+# All dates/thresholds illustrative and UNVERIFIED. signoff: null throughout.
+# Findings cross-referenced [G1]..[G8] — see ../rules-schema-spike.md.
+# ============================================================================
+
+- code: GST-GSTR9
+  category: gst
+  obligation_name: GST annual return
+  form_number: GSTR-9
+  applicability:
+    all:
+      - { attr: has_gst_registration, op: eq, value: unknown }   # [G1]
+      - any:
+          - { attr: aggregate_turnover, op: gte, value: 20000000 }  # ₹2 cr [G1]
+          - { attr: aggregate_turnover, op: eq, value: unknown }
+  anchor: fixed_date
+  offset_spec: { type: fixed, month: 12, day: 31, year_ref: fy_end_year }
+  source_citation: "CGST Act s.44; r.80 [UNVERIFIED — spike]"
+  signoff: null
+  # [G1] twice over: GST registration status AND aggregate turnover are both
+  # absent from the master. Also: GST registration is PER STATE (GSTIN) —
+  # a company can hold several. Phase 1 simplification: one row per company
+  # with a "per-GSTIN" remark; a gstin child table is a Phase 2 decision.
+  # Flagging so it is chosen, not stumbled into. [G6-adjacent]
+
+- code: GST-GSTR9C
+  category: gst
+  obligation_name: GST reconciliation statement
+  form_number: GSTR-9C
+  applicability:
+    all:
+      - { attr: has_gst_registration, op: eq, value: unknown }
+      - any:
+          - { attr: aggregate_turnover, op: gte, value: 50000000 }  # ₹5 cr [G1]
+          - { attr: aggregate_turnover, op: eq, value: unknown }
+  anchor: fixed_date
+  offset_spec: { type: fixed, month: 12, day: 31, year_ref: fy_end_year }
+  source_citation: "CGST r.80(3) [UNVERIFIED — spike]"
+  signoff: null
+
+- code: GST-GSTR3B-M
+  category: gst
+  obligation_name: Monthly summary return
+  form_number: GSTR-3B
+  applicability:
+    all:
+      - { attr: has_gst_registration, op: eq, value: unknown }
+      - { attr: gst_filing_frequency, op: eq, value: monthly }     # [G1] QRMP split
+  anchor: fixed_date
+  occurrences: recurrence                                          # [G7] — 12/FY
+  recurrence: { every: month, day: 20, count: 12, first_month_ref: fy_start }
+  source_citation: "CGST r.61 [UNVERIFIED — spike; QRMP scheme gives 22nd/24th
+    by state group — a per-entity attribute the master lacks]"
+  signoff: null
+  # RECOMMENDATION: exclude monthly/quarterly GST returns from Phase 1.
+  # 12+ rows × N companies floods the calendar with dates every practice
+  # already tracks elsewhere, and correctness depends on per-GSTIN attributes
+  # we don't hold. Annual obligations (9/9C) are where a signed dataset adds
+  # value. Encode the exclusion in the dataset with a written reason — this
+  # entry exists to force that decision.
