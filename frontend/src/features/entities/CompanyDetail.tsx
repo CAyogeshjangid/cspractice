@@ -1,0 +1,282 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { api } from "../../api/client";
+import type { Company, Director, Shareholder } from "../../api/types";
+import { Badge, Button, Card, Empty, ErrorText, Field, Input, Table } from "../../components/ds";
+
+type Tab = "directors" | "shareholders" | "fy";
+
+export function CompanyDetail() {
+  const { companyId } = useParams();
+  const [tab, setTab] = useState<Tab>("directors");
+  const company = useQuery({
+    queryKey: ["company", companyId],
+    queryFn: () => api.get<Company>(`/companies/${companyId}`),
+  });
+
+  if (!company.data) return <p className="text-sm text-slate-500">Loading…</p>;
+  const c = company.data;
+
+  return (
+    <div className="space-y-4">
+      <Card title={c.name}>
+        <dl className="grid grid-cols-4 gap-3 text-sm">
+          <Info label="CIN" value={c.cin} mono />
+          <Info label="AGM date" value={c.agm_date ?? "—"} />
+          <Info label="FY end" value={`${c.fy_end_day}/${c.fy_end_month}`} />
+          <Info label="Paid-up capital" value={c.paidup_capital?.toLocaleString() ?? "—"} />
+        </dl>
+      </Card>
+      <div className="flex gap-2">
+        {(["directors", "shareholders", "fy"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`rounded-md px-3 py-1.5 text-sm ${
+              tab === t ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-600"
+            }`}
+          >
+            {t === "fy" ? "FY attributes" : t[0].toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+      {tab === "directors" && <Directors companyId={c.id} />}
+      {tab === "shareholders" && <Shareholders companyId={c.id} />}
+      {tab === "fy" && <FyAttributes companyId={c.id} />}
+    </div>
+  );
+}
+
+function Info(props: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <dt className="text-xs uppercase text-slate-400">{props.label}</dt>
+      <dd className={props.mono ? "font-mono text-xs" : ""}>{props.value}</dd>
+    </div>
+  );
+}
+
+function Directors(props: { companyId: string }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<unknown>(null);
+  const directors = useQuery({
+    queryKey: ["directors", props.companyId],
+    queryFn: () => api.get<Director[]>(`/companies/${props.companyId}/directors`),
+  });
+  const add = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      api.post(`/companies/${props.companyId}/directors`, body),
+    onSuccess: () => {
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["directors", props.companyId] });
+    },
+    onError: setError,
+  });
+
+  return (
+    <Card title="Directors">
+      <ErrorText error={error} />
+      <form
+        className="mb-3 flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          add.mutate({
+            name: f.get("name"),
+            din: (f.get("din") as string) || null,
+            designation: (f.get("designation") as string) || null,
+            din_allocation_date: (f.get("din_allocation_date") as string) || null,
+          });
+          e.currentTarget.reset();
+        }}
+      >
+        <Field label="Name">
+          <Input name="name" required />
+        </Field>
+        <Field label="DIN (8 digits)">
+          <Input name="din" minLength={8} maxLength={8} />
+        </Field>
+        <Field label="Designation">
+          <Input name="designation" />
+        </Field>
+        <Field label="DIN allocation date">
+          <Input name="din_allocation_date" type="date" />
+        </Field>
+        <Button type="submit">Add</Button>
+      </form>
+      {directors.data?.length === 0 ? (
+        <Empty>No directors recorded.</Empty>
+      ) : (
+        <Table headers={["Name", "DIN", "Designation", "Active"]}>
+          {(directors.data ?? []).map((d) => (
+            <tr key={d.id}>
+              <td className="px-2 py-2">{d.name}</td>
+              <td className="px-2 py-2 font-mono text-xs">{d.din ?? "—"}</td>
+              <td className="px-2 py-2">{d.designation ?? "—"}</td>
+              <td className="px-2 py-2">
+                {d.is_active ? <Badge tone="ok">active</Badge> : <Badge>ceased</Badge>}
+              </td>
+            </tr>
+          ))}
+        </Table>
+      )}
+    </Card>
+  );
+}
+
+function Shareholders(props: { companyId: string }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<unknown>(null);
+  const holders = useQuery({
+    queryKey: ["shareholders", props.companyId],
+    queryFn: () =>
+      api.get<{
+        shareholders: Shareholder[];
+        total_shares: string;
+        total_percentage: string;
+        percentage_warning: boolean;
+      }>(`/companies/${props.companyId}/shareholders`),
+  });
+  const add = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      api.post(`/companies/${props.companyId}/shareholders`, body),
+    onSuccess: () => {
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["shareholders", props.companyId] });
+    },
+    onError: setError,
+  });
+
+  return (
+    <Card title="Shareholders (cap table)">
+      <ErrorText error={error} />
+      {holders.data?.percentage_warning && (
+        <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Percentages total {holders.data.total_percentage}% — expected ~100%.
+        </p>
+      )}
+      <form
+        className="mb-3 flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          add.mutate({
+            name: f.get("name"),
+            folio: (f.get("folio") as string) || null,
+            shares: Number(f.get("shares")) || null,
+            percentage: Number(f.get("percentage")) || null,
+          });
+          e.currentTarget.reset();
+        }}
+      >
+        <Field label="Name">
+          <Input name="name" required />
+        </Field>
+        <Field label="Folio">
+          <Input name="folio" />
+        </Field>
+        <Field label="Shares">
+          <Input name="shares" type="number" />
+        </Field>
+        <Field label="%">
+          <Input name="percentage" type="number" />
+        </Field>
+        <Button type="submit">Add</Button>
+      </form>
+      <Table headers={["Name", "Folio", "Shares", "%"]}>
+        {(holders.data?.shareholders ?? []).map((s) => (
+          <tr key={s.id}>
+            <td className="px-2 py-2">{s.name}</td>
+            <td className="px-2 py-2">{s.folio ?? "—"}</td>
+            <td className="px-2 py-2">{s.shares ?? "—"}</td>
+            <td className="px-2 py-2">{s.percentage ?? "—"}</td>
+          </tr>
+        ))}
+      </Table>
+      {holders.data && (
+        <p className="mt-2 text-xs text-slate-500">
+          Total: {holders.data.total_shares} shares · {holders.data.total_percentage}%
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function FyAttributes(props: { companyId: string }) {
+  const queryClient = useQueryClient();
+  const [fy, setFy] = useState(new Date().getFullYear() + (new Date().getMonth() >= 3 ? 1 : 0));
+  const [error, setError] = useState<unknown>(null);
+  const attrs = useQuery({
+    queryKey: ["fy-attrs", props.companyId, fy],
+    queryFn: () =>
+      api.get<Record<string, number | boolean | null>>(
+        `/companies/${props.companyId}/fy-attributes/${fy}`,
+      ),
+  });
+  const save = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      api.put(`/companies/${props.companyId}/fy-attributes/${fy}`, body),
+    onSuccess: () => {
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["fy-attrs", props.companyId, fy] });
+    },
+    onError: setError,
+  });
+
+  return (
+    <Card title={`Per-FY facts (FY ending ${fy}) — used by the rules engine`}>
+      <p className="mb-3 text-xs text-slate-500">
+        Unknown values leave calendar rows flagged “confirm applicability” rather than guessing.
+        Manager or Partner role required to edit.
+      </p>
+      <div className="mb-3 w-32">
+        <Field label="FY (ending year)">
+          <Input value={String(fy)} type="number" onChange={(v) => setFy(Number(v))} />
+        </Field>
+      </div>
+      <ErrorText error={error} />
+      <form
+        className="grid grid-cols-3 gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          const body: Record<string, unknown> = {};
+          for (const key of ["turnover", "net_worth", "net_profit"]) {
+            const value = f.get(key) as string;
+            if (value !== "") body[key] = Number(value);
+          }
+          for (const key of ["has_tan", "has_gst_registration", "has_transfer_pricing"]) {
+            const value = f.get(key) as string;
+            if (value !== "unknown") body[key] = value === "yes";
+          }
+          save.mutate(body);
+        }}
+      >
+        {(["turnover", "net_worth", "net_profit"] as const).map((key) => (
+          <Field key={key} label={`${key.replace("_", " ")} (₹)`}>
+            <Input name={key} type="number" defaultValue={attrs.data?.[key] != null ? String(attrs.data[key]) : ""} />
+          </Field>
+        ))}
+        {(["has_tan", "has_gst_registration", "has_transfer_pricing"] as const).map((key) => (
+          <Field key={key} label={key.replaceAll("_", " ")}>
+            <select
+              name={key}
+              defaultValue={
+                attrs.data?.[key] == null ? "unknown" : attrs.data[key] ? "yes" : "no"
+              }
+              className="w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm"
+            >
+              <option value="unknown">unknown</option>
+              <option value="yes">yes</option>
+              <option value="no">no</option>
+            </select>
+          </Field>
+        ))}
+        <div className="col-span-3">
+          <Button type="submit">Save FY facts</Button>
+        </div>
+      </form>
+    </Card>
+  );
+}

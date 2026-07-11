@@ -11,41 +11,50 @@ async function ensureCsrf(): Promise<string> {
   return csrfToken;
 }
 
-export async function api<T>(
-  path: string,
-  options: { method?: string; body?: unknown } = {},
-): Promise<T> {
-  const method = options.method ?? "GET";
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (method !== "GET") headers["X-CSRF-Token"] = await ensureCsrf();
-  const res = await fetch(`/api/v1${path}`, {
-    method,
-    headers,
-    credentials: "include",
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, (detail as { detail?: string }).detail ?? res.statusText);
-  }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
-}
-
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public detail?: unknown,
   ) {
     super(message);
   }
 }
 
-export interface Company {
-  id: string;
-  cin: string;
-  name: string;
-  agm_date: string | null;
-  fy_end_month: number;
-  fy_end_day: number;
+async function request<T>(
+  path: string,
+  options: { method?: string; body?: unknown; form?: FormData } = {},
+): Promise<T> {
+  const method = options.method ?? "GET";
+  const headers: Record<string, string> = {};
+  if (!options.form) headers["Content-Type"] = "application/json";
+  if (method !== "GET") headers["X-CSRF-Token"] = await ensureCsrf();
+  const res = await fetch(`/api/v1${path}`, {
+    method,
+    headers,
+    credentials: "include",
+    body: options.form ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
+  });
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => ({}))) as { detail?: unknown };
+    const detail = payload.detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : detail && typeof detail === "object" && "title" in detail
+          ? String((detail as { title: unknown }).title)
+          : res.statusText;
+    throw new ApiError(res.status, message, detail);
+  }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
 }
+
+export const api = {
+  get: <T,>(path: string) => request<T>(path),
+  post: <T,>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
+  put: <T,>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body }),
+  patch: <T,>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body }),
+  upload: <T,>(path: string, form: FormData) => request<T>(path, { method: "POST", form }),
+  del: <T,>(path: string, body?: unknown) => request<T>(path, { method: "DELETE", body }),
+};

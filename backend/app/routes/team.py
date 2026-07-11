@@ -110,6 +110,27 @@ async def list_invitations(
     ]
 
 
+@router.get("/members")
+async def list_members(
+    user: User = Depends(require_role(Role.viewer)),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, str | bool]]:
+    """Firm roster for assignee pickers — any authenticated role may read."""
+    rows = (
+        (
+            await session.execute(
+                select(User).where(User.firm_id == user.firm_id).order_by(User.email)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        {"id": str(u.id), "email": u.email, "role": u.role.value, "is_active": u.is_active}
+        for u in rows
+    ]
+
+
 @router.post("/invitations/accept", status_code=201)
 async def accept_invitation(
     body: AcceptIn,

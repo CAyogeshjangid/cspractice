@@ -92,3 +92,10 @@ async def test_unauthenticated_gets_401(firm) -> None:
     anon = firm.make_client()
     assert (await anon.get("/api/v1/companies")).status_code == 401
     assert (await post(anon, "/companies", COMPANY)).status_code == 401
+
+
+@pytest.mark.parametrize("persona", ["partner", "manager", "executive", "viewer"])
+async def test_all_roles_can_list_team_members(firm, persona) -> None:
+    res = await getattr(firm, persona).get("/api/v1/team/members")
+    assert res.status_code == 200
+    assert {m["role"] for m in res.json()} == {"partner", "manager", "executive", "viewer"}
