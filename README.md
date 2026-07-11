@@ -8,6 +8,9 @@ email reminders, and Word document generation.
 - **How to build it (engineering charter):** `CLAUDE.md` — non-negotiable
   security/quality rules born from a prior audit; read before contributing.
 - **Planning artifacts:** `docs/planning/` (PRD review, rules-schema spike)
+- **Rules dataset authoring:** `docs/RULES_AUTHORING.md` — the guide for the
+  professional who signs the dataset; `python -m app.rules.check` pre-flights
+  every dataset PR in CI
 - **Milestone log:** `docs/milestones/`
 
 ## Status

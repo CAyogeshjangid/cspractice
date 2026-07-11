@@ -18,6 +18,12 @@ export function CalendarPage() {
   const [openRow, setOpenRow] = useState<CalendarRow | null>(null);
   const [error, setError] = useState<unknown>(null);
   const company = session.workingCompany;
+  const members = useQuery({
+    queryKey: ["members"],
+    queryFn: () => api.get<TeamMember[]>("/team/members"),
+  });
+  const memberEmail = (id: string | null) =>
+    id ? (members.data?.find((m) => m.id === id)?.email ?? "assigned") : "\u2014";
 
   const rows = useQuery({
     enabled: !!company,
@@ -103,7 +109,7 @@ export function CalendarPage() {
                     {r.status}
                   </Badge>
                 </td>
-                <td className="px-2 py-2 text-xs">{r.assignee_user_id ? "assigned" : "—"}</td>
+                <td className="px-2 py-2 text-xs">{memberEmail(r.assignee_user_id)}</td>
                 <td className="px-2 py-2">
                   <TracePopover row={r} />
                 </td>

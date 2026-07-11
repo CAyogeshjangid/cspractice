@@ -38,6 +38,7 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: ruff check app tests
       - run: alembic upgrade head          # migration applies cleanly on fresh DB
+      - run: python -m app.rules.check     # dataset pre-flight (editorial gate)
       - run: pytest tests/ -q              # includes tests/security — never skipped
 
   gitleaks:
@@ -61,3 +62,53 @@ jobs:
           node-version: "22"
       - run: npm install --no-audit --no-fund
       - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: praxis
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: praxis_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U praxis" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgresql+asyncpg://praxis:ci@localhost:5432/praxis_e2e
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-only-jwt-secret-0123456789abcdefghijklmnopqrs
+      CSRF_SECRET: ci-only-csrf-secret-0123456789abcdefghijklmnopqr
+      CORS_ORIGINS: http://localhost:5173
+      STORAGE_DIR: /tmp/praxis-e2e-docs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e './backend'
+      - run: alembic upgrade head
+        working-directory: backend
+      - run: python -m app.services.documents
+        working-directory: backend
+      - run: nohup python -m uvicorn app.main:create_app --factory --port 8000 &
+        working-directory: backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: |
+          nohup npm run dev &
+          for i in $(seq 1 30); do curl -sf http://localhost:5173/ && break || sleep 1; done
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/api/v1/health && break || sleep 1; done
+        working-directory: frontend
+      - run: npx playwright test
+        working-directory: frontend
