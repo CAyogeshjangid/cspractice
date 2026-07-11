@@ -11,6 +11,8 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from redis.asyncio import Redis
+
 from app.config import get_settings
 from app.db import get_session
 from app.models import Role, User
@@ -18,6 +20,16 @@ from app.models import Role, User
 _hasher = PasswordHasher()
 ACCESS_COOKIE = "praxis_access"
 REFRESH_COOKIE = "praxis_refresh"
+
+_redis_client: Redis | None = None
+
+
+def _redis() -> Redis:
+    """Redis-backed token state — no in-memory dicts, ever (charter C4)."""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = Redis.from_url(get_settings().redis_url, decode_responses=True)
+    return _redis_client
 
 MIN_PASSWORD_LEN = 12  # strong-password policy (PRD §4.1)
 
@@ -71,11 +83,41 @@ def make_refresh_token(user: User) -> tuple[str, str]:
     return token, jti
 
 
+async def store_refresh_jti(jti: str, user_id: uuid.UUID) -> None:
+    ttl = get_settings().refresh_token_days * 86400
+    await _redis().set(f"refresh:{jti}", str(user_id), ex=ttl)
+
+
+async def consume_refresh_jti(jti: str) -> str | None:
+    """Single-use: GETDEL. A second use of the same jti returns None → 401.
+    Rotation means a stolen refresh token dies the moment either party uses it."""
+    return await _redis().getdel(f"refresh:{jti}")
+
+
+async def revoke_refresh_jti(jti: str) -> None:
+    await _redis().delete(f"refresh:{jti}")
+
+
+async def stash_pending_totp(user_id: uuid.UUID, secret: str) -> None:
+    """Secret is pending (10 min) until the user proves possession with a code;
+    only then does it land on the user row and become enforced at login."""
+    await _redis().set(f"totp_pending:{user_id}", secret, ex=600)
+
+
+async def pop_pending_totp(user_id: uuid.UUID) -> str | None:
+    return await _redis().getdel(f"totp_pending:{user_id}")
+
+
 def set_auth_cookies(response, access: str, refresh: str) -> None:
     s = get_settings()
     common = {"httponly": True, "samesite": "lax", "secure": s.is_prod, "path": "/"}
     response.set_cookie(ACCESS_COOKIE, access, max_age=s.access_token_minutes * 60, **common)
     response.set_cookie(REFRESH_COOKIE, refresh, max_age=s.refresh_token_days * 86400, **common)
+
+
+def clear_auth_cookies(response) -> None:
+    for name in (ACCESS_COOKIE, REFRESH_COOKIE):
+        response.delete_cookie(name, path="/")
 
 
 async def current_user(

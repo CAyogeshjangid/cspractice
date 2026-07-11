@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
 from app.config import get_settings
-from app.routes import auth, companies, health
+from app.routes import auth, companies, health, team
 from app.security.csrf import CSRFMiddleware
 from app.security.headers import SecurityHeadersMiddleware
 from app.security.ratelimit import RateLimitMiddleware
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(companies.router)
+    app.include_router(team.router)
     return app
 
 
