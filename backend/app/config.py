@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     refresh_token_days: int = 7
     rate_limit_per_minute: int = 120
     auth_rate_limit_per_minute: int = 10
+    storage_dir: str = "./data"  # generated documents root
 
     @field_validator("cors_origins")
     @classmethod

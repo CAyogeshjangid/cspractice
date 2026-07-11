@@ -19,7 +19,8 @@ email reminders, and Word document generation.
 | M3 Entity masters + Excel import | ✅ |
 | M4 Rules persistence + compliance calendar | ✅ |
 | M5 Reminders (arq worker, SMTP/Resend, dead-letter) | ✅ |
-| M6 Document generation · M7 Hardening | pending |
+| M6 Document generation (docxtpl, validation stamps, library) | ✅ |
+| M7 Hardening + pilot readiness | pending |
 
 ## Development
 

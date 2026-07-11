@@ -1,0 +1,44 @@
+[
+  {
+    "code": "AGM-NOTICE",
+    "name": "AGM Notice",
+    "governing_reference": "S.101 / SS-2",
+    "file": "agm_notice.docx",
+    "version": 1
+  },
+  {
+    "code": "DIRECTORS-REPORT",
+    "name": "Directors' Report (skeleton)",
+    "governing_reference": "S.134",
+    "file": "directors_report.docx",
+    "version": 1
+  },
+  {
+    "code": "MEETING-MINUTES",
+    "name": "Board/AGM Meeting Minutes",
+    "governing_reference": "S.118 / SS-1, SS-2",
+    "file": "meeting_minutes.docx",
+    "version": 1
+  },
+  {
+    "code": "ATTENDANCE-SHEET",
+    "name": "Attendance Sheet",
+    "governing_reference": "SS-1 / SS-2",
+    "file": "attendance_sheet.docx",
+    "version": 1
+  },
+  {
+    "code": "LIST-DIRECTORS",
+    "name": "List of Directors",
+    "governing_reference": "S.170",
+    "file": "list_of_directors.docx",
+    "version": 1
+  },
+  {
+    "code": "LIST-SHAREHOLDERS",
+    "name": "List of Shareholders",
+    "governing_reference": "S.88",
+    "file": "list_of_shareholders.docx",
+    "version": 1
+  }
+]

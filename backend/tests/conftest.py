@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from types import SimpleNamespace
 
 import pytest
@@ -19,6 +20,9 @@ REQUIRED_ENV = {
     "CORS_ORIGINS": "http://localhost:5173",
     "RATE_LIMIT_PER_MINUTE": "100000",
     "AUTH_RATE_LIMIT_PER_MINUTE": "100000",
+    "STORAGE_DIR": os.environ.get(
+        "STORAGE_DIR", os.path.join(tempfile.gettempdir(), "praxis-test-docs")
+    ),
 }
 
 STRONG_PW = "a-strong-password-123"  # test fixture value, not a credential
