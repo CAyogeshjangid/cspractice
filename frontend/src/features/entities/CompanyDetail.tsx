@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import type { Company, Director, Shareholder } from "../../api/types";
 import { Badge, Button, Card, Empty, ErrorText, Field, Input, Table } from "../../components/ds";
@@ -27,6 +27,7 @@ export function CompanyDetail() {
           <Info label="FY end" value={`${c.fy_end_day}/${c.fy_end_month}`} />
           <Info label="Paid-up capital" value={c.paidup_capital?.toLocaleString() ?? "—"} />
         </dl>
+        <CompanyActions company={c} />
       </Card>
       <div className="flex gap-2">
         {(["directors", "shareholders", "fy"] as Tab[]).map((t) => (
@@ -47,6 +48,94 @@ export function CompanyDetail() {
     </div>
   );
 }
+
+function CompanyActions(props: { company: Company }) {
+  const c = props.company;
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  const update = useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.put(`/companies/${c.id}`, body),
+    onSuccess: () => {
+      setEditing(false);
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["company", c.id] });
+      void queryClient.invalidateQueries({ queryKey: ["companies"] });
+    },
+    onError: setError,
+  });
+  const remove = useMutation({
+    mutationFn: (reason: string) => api.del(`/companies/${c.id}`, { reason }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["companies"] });
+      navigate("/");
+    },
+    onError: setError,
+  });
+
+  return (
+    <div className="mt-3 border-t border-slate-100 pt-3">
+      <ErrorText error={error} />
+      <div className="flex gap-2">
+        <Button variant="ghost" onClick={() => setEditing(!editing)}>
+          {editing ? "Close" : "Edit company"}
+        </Button>
+        <Button
+          variant="danger"
+          onClick={() => {
+            const reason = window.prompt(
+              "Soft delete (Partner only, kept in history) — reason:",
+            );
+            if (reason) remove.mutate(reason);
+          }}
+        >
+          Delete (soft)
+        </Button>
+      </div>
+      {editing && (
+        <form
+          className="mt-3 grid grid-cols-3 gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            const body: Record<string, unknown> = {};
+            const agm = f.get("agm_date") as string;
+            if (agm) body.agm_date = agm;
+            const addr = f.get("registered_address") as string;
+            if (addr) body.registered_address = addr;
+            const paidup = f.get("paidup_capital") as string;
+            if (paidup) body.paidup_capital = Number(paidup);
+            body.is_listed = f.get("is_listed") === "on";
+            update.mutate(body);
+          }}
+        >
+          <Field label="AGM date">
+            <Input name="agm_date" type="date" defaultValue={c.agm_date ?? ""} />
+          </Field>
+          <Field label="Registered address">
+            <Input name="registered_address" defaultValue={c.registered_address ?? ""} />
+          </Field>
+          <Field label="Paid-up capital (₹)">
+            <Input
+              name="paidup_capital"
+              type="number"
+              defaultValue={c.paidup_capital != null ? String(c.paidup_capital) : ""}
+            />
+          </Field>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="is_listed" defaultChecked={c.is_listed} /> Listed company
+          </label>
+          <div className="col-span-3">
+            <Button type="submit">Save changes</Button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
 
 function Info(props: { label: string; value: string; mono?: boolean }) {
   return (

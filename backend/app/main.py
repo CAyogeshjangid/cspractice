@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 
 from app.config import get_settings
 from app.routes import (
+    activity,
     auth,
     calendar,
     companies,
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(reminders.router)
     app.include_router(firm.router)
     app.include_router(documents.router)
+    app.include_router(activity.router)
     app.include_router(team.router)
     return app
 

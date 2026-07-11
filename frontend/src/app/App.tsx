@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ActivityPage } from "../features/activity/ActivityPage";
 import { AcceptInvitePage, AuthPage } from "../features/auth/AuthPage";
 import { CalendarPage } from "../features/calendar/CalendarPage";
 import { CompanyDetail } from "../features/entities/CompanyDetail";
@@ -40,6 +41,7 @@ export function App() {
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/team" element={<TeamPage />} />
+              <Route path="/activity" element={<ActivityPage />} />
             </Route>
           </Routes>
         </BrowserRouter>
