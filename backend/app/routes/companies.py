@@ -10,6 +10,7 @@ from app.db import get_session
 from app.models import Role, User
 from app.repositories import companies as repo
 from app.schemas.companies import CompanyIn, CompanyOut, DeleteIn
+from app.schemas.masters import CompanyUpdate
 from app.security.auth import require_role
 
 router = APIRouter(prefix="/api/v1/companies", tags=["companies"])
@@ -73,6 +74,33 @@ async def get_company(
     company = await repo.get_company(session, user.firm_id, company_id)
     if company is None:
         raise HTTPException(status_code=404, detail="company not found")
+    return CompanyOut.model_validate(company)
+
+
+@router.put("/{company_id}", response_model=CompanyOut)
+async def update_company(
+    company_id: uuid.UUID,
+    body: CompanyUpdate,
+    request: Request,
+    user: User = Depends(require_role(Role.executive)),  # Executive+ may edit (PRD §9)
+    session: AsyncSession = Depends(get_session),
+) -> CompanyOut:
+    company = await repo.get_company(session, user.firm_id, company_id)
+    if company is None:
+        raise HTTPException(status_code=404, detail="company not found")
+
+    before, after = {}, {}
+    for key, value in body.model_dump(exclude_unset=True).items():
+        current = getattr(company, key)
+        if current != value:
+            before[key], after[key] = str(current), str(value)
+            setattr(company, key, value)
+    if after:
+        await audit.record(
+            session, firm_id=user.firm_id, actor_user_id=user.id, entity_type="company",
+            entity_id=company.id, action="update", before=before, after=after, request=request,
+        )
+        await session.commit()
     return CompanyOut.model_validate(company)
 
 
