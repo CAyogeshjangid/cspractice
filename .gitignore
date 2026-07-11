@@ -1,0 +1,14 @@
+.env
+*.bak
+*.log
+test_reports/
+test-results/
+htmlcov/
+__pycache__/
+node_modules/
+dist/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
