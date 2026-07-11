@@ -17,8 +17,9 @@ email reminders, and Word document generation.
 | M1 Foundation (security middleware, rules engine core, migrations) | ✅ |
 | M2 Tenancy, auth, RBAC (invitations, rotating refresh, TOTP) | ✅ |
 | M3 Entity masters + Excel import | ✅ |
-| M4 Rules persistence + compliance calendar | in progress |
-| M5 Reminders · M6 Document generation · M7 Hardening | pending |
+| M4 Rules persistence + compliance calendar | ✅ |
+| M5 Reminders (arq worker, SMTP/Resend, dead-letter) | ✅ |
+| M6 Document generation · M7 Hardening | pending |
 
 ## Development
 
