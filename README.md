@@ -30,6 +30,8 @@ email reminders, and Word document generation.
 | M11 Phase 2: Practice masters (Auditors, PCS, DSC tracker) | ✅ |
 | M12 Phase 2: Annual Filing Suite (Shorter Notice, Auditor Appt, MR-3) | ✅ |
 | M13 Phase 2: LLP entity type (masters, partners, Form 11/8 papers) | ✅ |
+| M14 Dogfood: full-flow browser E2E, firm-zero runbook | ✅ |
+| M15 Debt closure: masters Excel import/export, mypy --strict | ✅ |
 
 ## Development
 

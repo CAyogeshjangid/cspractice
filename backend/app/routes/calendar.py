@@ -1,6 +1,8 @@
 """Compliance calendar routes (M4). No date math here — evaluator only (C12)."""
 from __future__ import annotations
 
+from typing import Any
+
 import io
 import uuid
 
@@ -13,6 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import audit
 from app.db import get_session
 from app.models import (
+    RuleExtension,
+    Company,
+    CalendarRow,
     CompanyFyAttributes,
     Role,
     RowStatus,
@@ -29,14 +34,20 @@ router = APIRouter(prefix="/api/v1", tags=["calendar"])
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-async def _owned_company(session: AsyncSession, user: User, company_id: uuid.UUID):
+async def _owned_company(session: AsyncSession, user: User, company_id: uuid.UUID) -> Company:
     company = await companies_repo.get_company(session, user.firm_id, company_id)
     if company is None:
         raise HTTPException(status_code=404, detail="company not found")
     return company
 
 
-def _row_out(row, code, version_no, payload, ext) -> CalendarRowOut:
+def _row_out(
+    row: CalendarRow,
+    code: str,
+    version_no: int,
+    payload: dict[str, Any],
+    ext: RuleExtension | None,
+) -> CalendarRowOut:
     extension_date = ext.extended_due_date if ext else None
     return CalendarRowOut(
         id=row.id,
@@ -242,7 +253,7 @@ async def get_fy_attributes(
     fy: int,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     await _owned_company(session, user, company_id)
     row = (
         await session.execute(
@@ -268,7 +279,7 @@ async def put_fy_attributes(
     request: Request,
     user: User = Depends(require_role(Role.manager)),  # Manager+ (Amendment A1)
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     await _owned_company(session, user, company_id)
     row = (
         await session.execute(

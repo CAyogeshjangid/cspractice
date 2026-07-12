@@ -2,6 +2,8 @@
 Read-only by construction; the table itself is INSERT-only at the DB layer."""
 from __future__ import annotations
 
+from typing import Any
+
 import uuid
 from datetime import date
 
@@ -29,7 +31,7 @@ async def list_activity(
     offset: int = 0,
     user: User = Depends(require_role(Role.manager)),  # "View activity log": P/M (PRD §9)
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     rows, total = await repo.list_activity(
         session,
         user.firm_id,

@@ -7,12 +7,15 @@ X-CSRF-Token header on every mutating request.
 """
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 import hashlib
 import hmac
 import secrets
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.types import ASGIApp
 from starlette.responses import JSONResponse, Response
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -36,11 +39,15 @@ def _valid(value: str, secret: str) -> bool:
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, secret: str) -> None:
+    def __init__(self, app: ASGIApp, secret: str) -> None:
         super().__init__(app)
         self._secret = secret
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         if request.method not in SAFE_METHODS:
             cookie = request.cookies.get(COOKIE_NAME, "")
             header = request.headers.get(HEADER_NAME, "")

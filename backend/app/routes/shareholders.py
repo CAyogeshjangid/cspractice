@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import uuid
 from decimal import Decimal
 
@@ -29,7 +31,7 @@ async def list_shareholders(
     company_id: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     await _owned_company(session, user, company_id)
     rows = await repo.list_shareholders(session, user.firm_id, company_id)
     total_shares = sum((r.shares or 0) for r in rows)

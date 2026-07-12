@@ -50,7 +50,7 @@ def _register_type(value: str) -> RegisterType:
         raise HTTPException(status_code=404, detail=f"unknown register type: {value}")
 
 
-def _entry_out(e: RegisterEntry) -> dict:
+def _entry_out(e: RegisterEntry) -> dict[str, Any]:
     return {
         "entry_key": str(e.entry_key),
         "version": e.version_no,
@@ -66,22 +66,21 @@ async def registers_summary(
     company_id: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """All 14 registers with their section refs, schemas, and entry counts —
     including not-yet-started ones, so nothing is invisible."""
     await _owned_company(session, user, company_id)
-    counts = dict(
-        (
-            await session.execute(
-                select(RegisterEntry.register_type, func.count(func.distinct(RegisterEntry.entry_key)))
-                .where(
-                    RegisterEntry.firm_id == user.firm_id,
-                    RegisterEntry.company_id == company_id,
-                )
-                .group_by(RegisterEntry.register_type)
+    count_rows = (
+        await session.execute(
+            select(RegisterEntry.register_type, func.count(func.distinct(RegisterEntry.entry_key)))
+            .where(
+                RegisterEntry.firm_id == user.firm_id,
+                RegisterEntry.company_id == company_id,
             )
-        ).all()
-    )
+            .group_by(RegisterEntry.register_type)
+        )
+    ).all()
+    counts: dict[RegisterType, int] = {rtype: n for rtype, n in count_rows}
     return [
         {
             "type": rtype.value,
@@ -103,7 +102,7 @@ async def list_entries(
     as_on: datetime | None = None,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     await _owned_company(session, user, company_id)
     rows = await svc.entries_as_on(
         session, user.firm_id, company_id, _register_type(register_type), as_on
@@ -119,7 +118,7 @@ async def create_entry(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     await _owned_company(session, user, company_id)
     rtype = _register_type(register_type)
     try:
@@ -144,7 +143,7 @@ async def amend_entry(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     try:
         entry = await svc.amend_entry(
             session, user.firm_id, entry_key, body.payload, body.expected_version, user.id
@@ -171,7 +170,7 @@ async def delete_entry(
     request: Request,
     user: User = Depends(require_role(Role.partner)),  # legal records: Partner only
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     try:
         entry = await svc.soft_delete_entry(session, user.firm_id, entry_key, body.reason, user.id)
     except LookupError:
@@ -192,7 +191,7 @@ async def entry_history(
     entry_key: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     rows = await svc.history(session, user.firm_id, entry_key)
     if not rows:
         raise HTTPException(status_code=404, detail="entry not found")

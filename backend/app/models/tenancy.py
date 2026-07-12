@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import enum
 import uuid
 from datetime import datetime
@@ -24,7 +26,7 @@ class Firm(IdTimestamps, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     plan: Mapped[str] = mapped_column(String(50), nullable=False, default="pilot")
     # email provider config etc.; secrets in this blob are envelope-encrypted (C8)
-    settings: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    settings: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
 
 class User(IdTimestamps, Base):

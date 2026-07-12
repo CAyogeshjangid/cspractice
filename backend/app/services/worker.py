@@ -5,6 +5,9 @@ Jobs persist in Redis — killing the worker mid-queue loses nothing (M5).
 """
 from __future__ import annotations
 
+from typing import Any
+
+import uuid
 from datetime import date
 
 from arq import cron
@@ -18,26 +21,26 @@ from app.services.reminders import deliver, schedule_due_reminders
 RETRY_BACKOFF_SECONDS = (60, 300, 900)  # 1m, 5m, 15m
 
 
-async def startup(ctx: dict) -> None:
+async def startup(ctx: dict[str, Any]) -> None:
     engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
     ctx["engine"] = engine
     ctx["session_factory"] = async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def shutdown(ctx: dict) -> None:
+async def shutdown(ctx: dict[str, Any]) -> None:
     await ctx["engine"].dispose()
 
 
-async def send_reminder_job(ctx: dict, dispatch_id: str) -> str:
+async def send_reminder_job(ctx: dict[str, Any], dispatch_id: str) -> str:
     async with ctx["session_factory"]() as session:
-        outcome = await deliver(session, dispatch_id, date.today())
+        outcome = await deliver(session, uuid.UUID(dispatch_id), date.today())
     if outcome == "retry":
         attempt = min(ctx.get("job_try", 1), len(RETRY_BACKOFF_SECONDS)) - 1
         raise Retry(defer=RETRY_BACKOFF_SECONDS[attempt])
     return outcome
 
 
-async def schedule_reminders_job(ctx: dict) -> int:
+async def schedule_reminders_job(ctx: dict[str, Any]) -> int:
     """Daily: create due dispatches, then enqueue anything queued."""
     async with ctx["session_factory"]() as session:
         created = await schedule_due_reminders(session, date.today())

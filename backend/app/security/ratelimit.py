@@ -6,24 +6,33 @@ get a stricter limit. Fails CLOSED on Redis outage for auth endpoints
 """
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 import time
 
 from redis.asyncio import Redis
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.types import ASGIApp
 from starlette.responses import JSONResponse, Response
 
 AUTH_PREFIX = "/api/v1/auth"
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, redis: Redis, per_minute: int, auth_per_minute: int) -> None:
+    def __init__(
+        self, app: ASGIApp, redis: Redis, per_minute: int, auth_per_minute: int
+    ) -> None:
         super().__init__(app)
         self._redis = redis
         self._per_minute = per_minute
         self._auth_per_minute = auth_per_minute
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         is_auth = request.url.path.startswith(AUTH_PREFIX)
         limit = self._auth_per_minute if is_auth else self._per_minute
         client = request.client.host if request.client else "unknown"

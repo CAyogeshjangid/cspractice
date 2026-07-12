@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import enum
 import uuid
 from datetime import date
@@ -52,7 +54,7 @@ class RuleVersion(IdTimestamps, Base):
     version_no: Mapped[int] = mapped_column(Integer, nullable=False)
     effective_from: Mapped[date] = mapped_column(Date, nullable=False)
     effective_to: Mapped[date | None] = mapped_column(Date)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     signed_off_by: Mapped[str] = mapped_column(String(200), nullable=False)
     signoff_note: Mapped[str | None] = mapped_column(Text)
     source_document_ref: Mapped[str] = mapped_column(Text, nullable=False)
@@ -67,6 +69,6 @@ class RuleExtension(IdTimestamps, Base):
     circular_ref: Mapped[str] = mapped_column(String(200), nullable=False)
     circular_date: Mapped[date] = mapped_column(Date, nullable=False)
     applies_fy: Mapped[int] = mapped_column(Integer, nullable=False)
-    applies_predicate: Mapped[dict | None] = mapped_column(JSONB)  # e.g. only TP cases
+    applies_predicate: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # e.g. only TP cases
     extended_due_date: Mapped[date] = mapped_column(Date, nullable=False)
     signed_off_by: Mapped[str] = mapped_column(String(200), nullable=False)

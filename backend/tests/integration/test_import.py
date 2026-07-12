@@ -145,3 +145,69 @@ async def test_template_and_export_roundtrip(make_client) -> None:
     rows = list(load_workbook(io.BytesIO(export.content)).active.values)
     assert rows[1][0] == cin(3)
     assert rows[1][1] == "Export Co"
+
+
+# ---- M15: per-master import/export (PRD §4.3/4.4) ----
+
+MASTER_COMPANY = {"cin": "U74999MH2020PTC454545", "name": "Master Import Co"}
+
+
+async def master_upload(client, cid: str, master: str, data: bytes, dry_run: bool = False):
+    return await client.post(
+        f"/api/v1/companies/{cid}/{master}/import?dry_run={str(dry_run).lower()}",
+        files={"file": (f"{master}.xlsx", data, XLSX)},
+        headers={"X-CSRF-Token": await csrf(client)},
+    )
+
+
+async def test_directors_import_all_or_nothing_and_idempotent(firm) -> None:
+    from tests.conftest import post as _post
+
+    cid = (await _post(firm.manager, "/companies", MASTER_COMPANY)).json()["id"]
+    good = [
+        ["A. Director", "01234567", "approved", "2015-01-01", "MD", "2020-06-01", None],
+        ["B. Member", "07654321", None, None, "Director", None, None],
+    ]
+    headers = ["name", "din", "din_status", "din_allocation_date", "designation",
+               "appointment_date", "cessation_date"]
+
+    # a bad DIN poisons the whole file — nothing imports
+    res = await master_upload(firm.executive, cid, "directors",
+                              build_xlsx(good + [["C. Bad", "123", None, None, None, None, None]],
+                                         headers=headers))
+    assert res.status_code == 422
+    assert res.json()["detail"]["errors"][0]["column"] == "din"
+    assert (await firm.viewer.get(f"/api/v1/companies/{cid}/directors")).json() == []
+
+    # clean file imports; identical re-import skips everything
+    res = await master_upload(firm.executive, cid, "directors", build_xlsx(good, headers=headers))
+    assert res.status_code == 200, res.text
+    assert res.json()["created"] == 2
+    res = await master_upload(firm.executive, cid, "directors", build_xlsx(good, headers=headers))
+    assert (res.json()["created"], res.json()["skipped"]) == (0, 2)
+
+    # export round-trip carries the data
+    export = await firm.viewer.get(f"/api/v1/companies/{cid}/directors/export")
+    rows = list(load_workbook(io.BytesIO(export.content)).active.values)
+    assert rows[1][0] == "A. Director" and rows[1][1] == "01234567"
+
+
+async def test_shareholders_import_and_rbac(firm) -> None:
+    from tests.conftest import post as _post
+
+    cid = (await _post(firm.manager, "/companies", MASTER_COMPANY)).json()["id"]
+    headers = ["name", "folio", "shares", "percentage", "category"]
+    data = build_xlsx([["Holder One", "F001", 9000, 90, "promoter"],
+                       ["Holder Two", "F002", 1000, 10, "public"]], headers=headers)
+
+    assert (await master_upload(firm.viewer, cid, "shareholders", data)).status_code == 403
+
+    res = await master_upload(firm.executive, cid, "shareholders", data)
+    assert res.status_code == 200, res.text
+    assert res.json()["created"] == 2
+    holders = (await firm.viewer.get(f"/api/v1/companies/{cid}/shareholders")).json()
+    assert holders["total_shares"] == "10000"
+
+    # unknown master name → 404, not a crash
+    res = await master_upload(firm.executive, cid, "charges", data)
+    assert res.status_code == 404

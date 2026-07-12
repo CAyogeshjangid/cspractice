@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import enum
 import uuid
 from datetime import datetime
@@ -51,7 +53,7 @@ class GeneratedDocument(IdTimestamps, Base):
     letterhead: Mapped[Letterhead] = mapped_column(
         Enum(Letterhead, name="letterhead"), nullable=False
     )
-    data_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    data_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     generated_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("user.id"), nullable=False

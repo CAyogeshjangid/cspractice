@@ -73,7 +73,7 @@ class DeleteIn(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
-def _llp_out(llp: Llp) -> dict:
+def _llp_out(llp: Llp) -> dict[str, Any]:
     return {
         "id": str(llp.id), "llpin": llp.llpin, "name": llp.name,
         "incorporation_date": str(llp.incorporation_date) if llp.incorporation_date else None,
@@ -101,7 +101,7 @@ async def list_llps(
     response: Response,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     base = select(Llp).where(Llp.firm_id == user.firm_id, Llp.deleted_at.is_(None))
     total = (await session.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     rows = (await session.execute(base.order_by(Llp.name))).scalars().all()
@@ -115,7 +115,7 @@ async def create_llp(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     existing = (
         await session.execute(
             select(Llp).where(
@@ -141,7 +141,7 @@ async def get_llp(
     llp_id: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     return _llp_out(await _owned_llp(session, user, llp_id))
 
 
@@ -152,7 +152,7 @@ async def update_llp(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     llp = await _owned_llp(session, user, llp_id)
     before, after = {}, {}
     for key, value in body.model_dump().items():
@@ -194,7 +194,7 @@ async def list_partners(
     llp_id: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     await _owned_llp(session, user, llp_id)
     rows = (
         (
@@ -228,7 +228,7 @@ async def create_partner(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     await _owned_llp(session, user, llp_id)
     partner = LlpPartner(firm_id=user.firm_id, llp_id=llp_id, **body.model_dump())
     session.add(partner)
@@ -265,7 +265,7 @@ async def get_working_paper(
     form: LlpForm,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     await _owned_llp(session, user, llp_id)
     paper = (
         await session.execute(
@@ -309,7 +309,7 @@ async def upsert_working_paper(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     await _owned_llp(session, user, llp_id)
     _validate_payload(form, body.payload)
     if body.status == WorkingPaperStatus.finalized and not body.srn:

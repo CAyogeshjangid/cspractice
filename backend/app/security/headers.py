@@ -1,6 +1,8 @@
 """Security headers on EVERY response, /api/* included (charter C9)."""
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 import secrets
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -9,7 +11,11 @@ from starlette.responses import Response
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         nonce = secrets.token_urlsafe(16)
         request.state.csp_nonce = nonce
         response = await call_next(request)

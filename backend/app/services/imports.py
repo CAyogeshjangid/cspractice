@@ -263,3 +263,94 @@ def _cell(value: Any) -> Any:
     if isinstance(value, Decimal):
         return float(value)  # display only; storage stays NUMERIC (§9)
     return value
+
+
+# ---------------------------------------------------------------------------
+# Generic per-master importer (M15): directors and shareholders get the same
+# all-or-nothing contract as companies (PRD §4.3/4.4).
+
+MASTER_SPECS: dict[str, dict[str, Any]] = {
+    "directors": {
+        "headers": ["name", "din", "din_status", "din_allocation_date", "designation",
+                    "appointment_date", "cessation_date"],
+        "required": ["name"],
+        "dates": {"din_allocation_date", "appointment_date", "cessation_date"},
+        "decimals": set(),
+        # duplicate-skip identity on re-import (no natural unique key like CIN)
+        "identity": lambda rec: (rec.get("din") or "", rec.get("name", "")),
+    },
+    "shareholders": {
+        "headers": ["name", "folio", "shares", "percentage", "category"],
+        "required": ["name"],
+        "dates": set(),
+        "decimals": {"shares", "percentage"},
+        "identity": lambda rec: (rec.get("folio") or "", rec.get("name", "")),
+    },
+}
+
+
+def build_master_template(master: str) -> bytes:
+    spec = MASTER_SPECS[master]
+    wb = Workbook()
+    ws = wb.active
+    ws.title = master
+    ws.append(spec["headers"])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def parse_master(master: str, data: bytes) -> ParseResult:
+    """Same contract as the company importer: any error → nothing imports."""
+    spec = MASTER_SPECS[master]
+    result = ParseResult()
+    try:
+        wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    except Exception:
+        result.errors.append(RowError(0, "-", "file is not a readable .xlsx workbook"))
+        return result
+    ws = wb.active
+    rows_iter = ws.iter_rows(values_only=True)
+    try:
+        header_row = next(rows_iter)
+    except StopIteration:
+        result.errors.append(RowError(0, "-", "workbook is empty"))
+        return result
+
+    columns: dict[int, str] = {}
+    for idx, raw in enumerate(header_row):
+        if raw is not None and str(raw).strip().lower() in spec["headers"]:
+            columns[idx] = str(raw).strip().lower()
+    missing_headers = [h for h in spec["required"] if h not in columns.values()]
+    if missing_headers:
+        result.errors.append(RowError(1, "-", f"header row must include: {missing_headers}"))
+        return result
+
+    for row_no, values in enumerate(rows_iter, start=2):
+        if values is None or all(v is None or str(v).strip() == "" for v in values):
+            continue
+        record: dict[str, Any] = {"_row": row_no}
+        row_errors: list[RowError] = []
+        for idx, field_name in columns.items():
+            value = values[idx] if idx < len(values) else None
+            if value is None or str(value).strip() == "":
+                continue
+            try:
+                if field_name in spec["dates"]:
+                    record[field_name] = _parse_date(value)
+                elif field_name in spec["decimals"]:
+                    record[field_name] = Decimal(str(value).replace(",", "").strip())
+                else:
+                    record[field_name] = str(value).strip()
+            except (ValueError, InvalidOperation) as exc:
+                row_errors.append(RowError(row_no, field_name, str(exc)))
+        for field_name in spec["required"]:
+            if not record.get(field_name):
+                row_errors.append(RowError(row_no, field_name, f"{field_name} is required"))
+        din = record.get("din")
+        if master == "directors" and din and len(str(din)) != 8:
+            row_errors.append(RowError(row_no, "din", "DIN must be 8 digits"))
+        result.errors.extend(row_errors)
+        if not row_errors:
+            result.rows.append(record)
+    return result

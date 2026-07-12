@@ -3,6 +3,8 @@ masters + Form 11/8 working papers; manual data, no MCA fetch, and NO due
 dates here — LLP deadlines belong to the rules dataset, C12)."""
 from __future__ import annotations
 
+from typing import Any
+
 import enum
 import uuid
 from datetime import date, datetime
@@ -90,7 +92,7 @@ class LlpWorkingPaper(IdTimestamps, Base):
     )
     fy: Mapped[int] = mapped_column(Integer, nullable=False)  # FY ending year (§9)
     form: Mapped[LlpForm] = mapped_column(Enum(LlpForm, name="llp_form"), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     status: Mapped[WorkingPaperStatus] = mapped_column(
         Enum(WorkingPaperStatus, name="working_paper_status"),
         nullable=False,

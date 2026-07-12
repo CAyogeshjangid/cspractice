@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -141,22 +141,22 @@ async def create_shareholder(
     return row
 
 
-TAXONOMY_MODELS = {"professional-groups": ProfessionalGroup, "industries": Industry}
+TAXONOMY_MODELS: dict[str, type[ProfessionalGroup] | type[Industry]] = {
+    "professional-groups": ProfessionalGroup,
+    "industries": Industry,
+}
 
 
 async def list_taxonomy(
     session: AsyncSession, firm_id: uuid.UUID, kind: str
 ) -> list[ProfessionalGroup | Industry]:
     model = TAXONOMY_MODELS[kind]
-    return list(
-        (
-            await session.execute(
-                select(model).where(model.firm_id == firm_id).order_by(model.name)
-            )
+    rows = (
+        await session.execute(
+            select(model).where(model.firm_id == firm_id).order_by(model.name)
         )
-        .scalars()
-        .all()
-    )
+    ).scalars()
+    return cast("list[ProfessionalGroup | Industry]", list(rows))
 
 
 async def create_taxonomy(

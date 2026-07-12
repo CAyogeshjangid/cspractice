@@ -65,7 +65,7 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     try:
-        return Settings()
+        return Settings()  # type: ignore[call-arg]  # required kwargs come from env (C8)
     except Exception as exc:  # re-raise with an operator-friendly message
         raise RuntimeError(
             "Praxis refuses to start: missing/invalid configuration.\n"

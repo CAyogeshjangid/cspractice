@@ -141,7 +141,11 @@ async def generate(
                     subject_id=subject_id,
                     occurrence_label=draft.occurrence_label,
                     computed_due_date=draft.computed_due_date,
-                    extension_id=extension_ids.get(draft.extension_ref),
+                    extension_id=(
+                        extension_ids.get(draft.extension_ref)
+                        if draft.extension_ref
+                        else None
+                    ),
                     needs_review=draft.needs_review,
                     needs_review_reason=(
                         NeedsReviewReason(draft.needs_review_reason)
@@ -180,7 +184,7 @@ async def generate(
                 else None
             )
             changed = True
-        new_ext = extension_ids.get(draft.extension_ref)
+        new_ext = extension_ids.get(draft.extension_ref) if draft.extension_ref else None
         if new_ext and row.extension_id != new_ext:
             row.extension_id = new_ext
             changed = True

@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable, Coroutine
+from typing import Any
 from datetime import datetime, timedelta, timezone
 
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -91,7 +93,8 @@ async def store_refresh_jti(jti: str, user_id: uuid.UUID) -> None:
 async def consume_refresh_jti(jti: str) -> str | None:
     """Single-use: GETDEL. A second use of the same jti returns None → 401.
     Rotation means a stolen refresh token dies the moment either party uses it."""
-    return await _redis().getdel(f"refresh:{jti}")
+    value = await _redis().getdel(f"refresh:{jti}")
+    return str(value) if value is not None else None
 
 
 async def revoke_refresh_jti(jti: str) -> None:
@@ -105,17 +108,23 @@ async def stash_pending_totp(user_id: uuid.UUID, secret: str) -> None:
 
 
 async def pop_pending_totp(user_id: uuid.UUID) -> str | None:
-    return await _redis().getdel(f"totp_pending:{user_id}")
+    value = await _redis().getdel(f"totp_pending:{user_id}")
+    return str(value) if value is not None else None
 
 
-def set_auth_cookies(response, access: str, refresh: str) -> None:
+def set_auth_cookies(response: Response, access: str, refresh: str) -> None:
     s = get_settings()
-    common = {"httponly": True, "samesite": "lax", "secure": s.is_prod, "path": "/"}
-    response.set_cookie(ACCESS_COOKIE, access, max_age=s.access_token_minutes * 60, **common)
-    response.set_cookie(REFRESH_COOKIE, refresh, max_age=s.refresh_token_days * 86400, **common)
+    for name, value, max_age in (
+        (ACCESS_COOKIE, access, s.access_token_minutes * 60),
+        (REFRESH_COOKIE, refresh, s.refresh_token_days * 86400),
+    ):
+        response.set_cookie(
+            name, value, max_age=max_age,
+            httponly=True, samesite="lax", secure=s.is_prod, path="/",
+        )
 
 
-def clear_auth_cookies(response) -> None:
+def clear_auth_cookies(response: Response) -> None:
     for name in (ACCESS_COOKIE, REFRESH_COOKIE):
         response.delete_cookie(name, path="/")
 
@@ -144,7 +153,7 @@ async def current_user(
 _ROLE_ORDER = {Role.viewer: 0, Role.executive: 1, Role.manager: 2, Role.partner: 3}
 
 
-def require_role(minimum: Role):
+def require_role(minimum: Role) -> Callable[..., Coroutine[Any, Any, User]]:
     """RBAC dependency used by every route (charter M2). Server-side, per request —
     UI hiding is cosmetic, never the control (PRD §9)."""
 

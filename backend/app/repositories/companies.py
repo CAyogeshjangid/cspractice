@@ -5,6 +5,7 @@ No route handler builds queries against tenant tables; they call these.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
@@ -49,7 +50,9 @@ async def get_by_cin(session: AsyncSession, firm_id: uuid.UUID, cin: str) -> Com
     ).scalar_one_or_none()
 
 
-async def create_company(session: AsyncSession, firm_id: uuid.UUID, data: dict) -> Company:
+async def create_company(
+    session: AsyncSession, firm_id: uuid.UUID, data: dict[str, Any]
+) -> Company:
     company = Company(firm_id=firm_id, **data)
     session.add(company)
     await session.flush()

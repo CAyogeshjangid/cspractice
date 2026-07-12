@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +44,7 @@ async def rows_with_trace(
     company_id: uuid.UUID,
     fy: int,
     needs_review: bool | None = None,
-) -> list[tuple[CalendarRow, str, int, dict, RuleExtension | None]]:
+) -> list[tuple[CalendarRow, str, int, dict[str, Any], RuleExtension | None]]:
     """Rows joined with their pinned rule version for the trace popover:
     every date traces to rule code → version → citation (PRD §7)."""
     q = (

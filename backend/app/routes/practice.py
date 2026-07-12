@@ -1,6 +1,8 @@
 """Practice masters routes: auditors (+appointments), PCS, DSC tokens (M11)."""
 from __future__ import annotations
 
+from typing import Any
+
 import uuid
 from datetime import date
 
@@ -40,7 +42,7 @@ class AuditorIn(BaseModel):
 async def list_auditors(
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     rows = (
         (
             await session.execute(
@@ -63,7 +65,7 @@ async def create_auditor(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     auditor = Auditor(firm_id=user.firm_id, **body.model_dump())
     session.add(auditor)
     try:
@@ -92,7 +94,7 @@ async def list_appointments(
     company_id: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     if await companies_repo.get_company(session, user.firm_id, company_id) is None:
         raise HTTPException(status_code=404, detail="company not found")
     rows = (
@@ -124,7 +126,7 @@ async def create_appointment(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     if await companies_repo.get_company(session, user.firm_id, company_id) is None:
         raise HTTPException(status_code=404, detail="company not found")
     auditor = (
@@ -163,7 +165,7 @@ class PcsIn(BaseModel):
 async def list_pcs(
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     rows = (
         (
             await session.execute(
@@ -188,7 +190,7 @@ async def create_pcs(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     pcs = PcsProfessional(firm_id=user.firm_id, **body.model_dump())
     session.add(pcs)
     try:
@@ -218,7 +220,7 @@ class DscIn(BaseModel):
 async def list_dsc(
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     rows = (
         (
             await session.execute(
@@ -247,7 +249,7 @@ async def create_dsc(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     token = DscToken(firm_id=user.firm_id, **body.model_dump())
     session.add(token)
     await session.flush()
@@ -267,7 +269,7 @@ async def update_dsc(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     token = (
         await session.execute(
             select(DscToken).where(DscToken.firm_id == user.firm_id, DscToken.id == token_id)

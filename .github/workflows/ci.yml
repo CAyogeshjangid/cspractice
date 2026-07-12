@@ -37,6 +37,7 @@ jobs:
           python-version: "3.12"
       - run: pip install -e '.[dev]'
       - run: ruff check app tests
+      - run: mypy --strict app   # charter §9
       - run: alembic upgrade head          # migration applies cleanly on fresh DB
       - run: python -m app.rules.check     # dataset pre-flight (editorial gate)
       - run: pytest tests/ -q              # includes tests/security — never skipped

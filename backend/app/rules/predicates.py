@@ -16,6 +16,8 @@ None attribute resolves UNKNOWN (never False).
 """
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import enum
 from typing import Any
 
@@ -28,7 +30,7 @@ class Tri(enum.Enum):
 
 AttributeBag = dict[int, dict[str, Any]]  # fy -> {attr: value}
 
-_OPS = {
+_OPS: dict[str, Callable[[Any, Any], bool]] = {
     "eq": lambda a, b: a == b,
     "ne": lambda a, b: a != b,
     "gt": lambda a, b: a > b,

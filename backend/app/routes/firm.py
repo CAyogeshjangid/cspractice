@@ -2,7 +2,7 @@
 encrypted; secrets never appear in responses or logs (C8)."""
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
@@ -37,13 +37,13 @@ async def put_email_settings(
     request: Request,
     user: User = Depends(require_role(Role.partner)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     if body.provider == "smtp" and not (body.host and body.port):
         raise HTTPException(status_code=422, detail="smtp requires host and port")
     if body.provider == "resend" and not body.api_key:
         raise HTTPException(status_code=422, detail="resend requires an api_key")
 
-    config: dict = {"provider": body.provider, "from_addr": body.from_addr}
+    config: dict[str, Any] = {"provider": body.provider, "from_addr": body.from_addr}
     if body.provider == "smtp":
         config.update({"host": body.host, "port": body.port, "use_tls": body.use_tls})
         if body.username:
@@ -69,7 +69,7 @@ async def put_email_settings(
 async def get_email_settings(
     user: User = Depends(require_role(Role.partner)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     firm = (await session.execute(select(Firm).where(Firm.id == user.firm_id))).scalar_one()
     config = (firm.settings or {}).get("email") or {}
     return {

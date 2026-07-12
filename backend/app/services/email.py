@@ -6,6 +6,8 @@ instead of failing silently (PRD §4.6: silent failure is a defect).
 """
 from __future__ import annotations
 
+from typing import Any
+
 import asyncio
 import smtplib
 from dataclasses import dataclass
@@ -29,7 +31,7 @@ class EmailPayload:
     body: str
 
 
-async def send_email(firm_settings: dict, payload: EmailPayload) -> str:
+async def send_email(firm_settings: dict[str, Any], payload: EmailPayload) -> str:
     """Send via the firm's configured provider. Returns the provider name."""
     config = (firm_settings or {}).get("email") or {}
     provider = config.get("provider")
@@ -42,7 +44,7 @@ async def send_email(firm_settings: dict, payload: EmailPayload) -> str:
     raise ProviderNotConfigured("no email provider configured for this firm")
 
 
-async def _send_smtp(config: dict, payload: EmailPayload) -> None:
+async def _send_smtp(config: dict[str, Any], payload: EmailPayload) -> None:
     required = {"host", "port", "from_addr"}
     if missing := required - config.keys():
         raise ProviderNotConfigured(f"smtp config missing: {sorted(missing)}")
@@ -63,7 +65,7 @@ async def _send_smtp(config: dict, payload: EmailPayload) -> None:
     await asyncio.to_thread(_send)  # smtplib is blocking; keep the loop free
 
 
-async def _send_resend(config: dict, payload: EmailPayload) -> None:
+async def _send_resend(config: dict[str, Any], payload: EmailPayload) -> None:
     if "api_key_enc" not in config or "from_addr" not in config:
         raise ProviderNotConfigured("resend config missing api key or from address")
     async with httpx.AsyncClient(timeout=30) as client:

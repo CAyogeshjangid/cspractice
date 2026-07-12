@@ -46,7 +46,7 @@ class GenerateIn(BaseModel):
 async def list_templates(
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     rows = (
         (await session.execute(select(DocTemplate).order_by(DocTemplate.code))).scalars().all()
     )
@@ -72,7 +72,7 @@ async def validate_template(
     request: Request,
     user: User = Depends(require_role(Role.manager)),  # template management: P/M (PRD §9)
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     template = (
         await session.execute(select(DocTemplate).where(DocTemplate.code == code))
     ).scalar_one_or_none()
@@ -99,7 +99,7 @@ async def generate_document(
     request: Request,
     user: User = Depends(require_role(Role.executive)),  # generate docs: P/M/E (PRD §9)
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     company = await companies_repo.get_company(session, user.firm_id, company_id)
     if company is None:
         raise HTTPException(status_code=404, detail="company not found")
@@ -133,7 +133,7 @@ async def document_library(
     company_id: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     if await companies_repo.get_company(session, user.firm_id, company_id) is None:
         raise HTTPException(status_code=404, detail="company not found")
     rows = (
@@ -194,7 +194,7 @@ async def document_snapshot(
     document_id: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     doc = (
         await session.execute(
             select(GeneratedDocument).where(

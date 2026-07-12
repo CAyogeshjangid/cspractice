@@ -1,6 +1,8 @@
 """Meeting scheduler routes (PRD §5 Phase 2)."""
 from __future__ import annotations
 
+from typing import Any
+
 import uuid
 from datetime import date
 
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import audit
 from app.db import get_session
 from app.models import (
+    Company,
     Firm,
     Letterhead,
     Meeting,
@@ -48,7 +51,7 @@ class PackIn(BaseModel):
     place: str = Field(min_length=1, max_length=100)
 
 
-def _out(m: Meeting) -> dict:
+def _out(m: Meeting) -> dict[str, Any]:
     return {
         "id": str(m.id),
         "fy": m.fy,
@@ -64,7 +67,7 @@ def _out(m: Meeting) -> dict:
     }
 
 
-async def _owned_company(session: AsyncSession, user: User, company_id: uuid.UUID):
+async def _owned_company(session: AsyncSession, user: User, company_id: uuid.UUID) -> Company:
     company = await companies_repo.get_company(session, user.firm_id, company_id)
     if company is None:
         raise HTTPException(status_code=404, detail="company not found")
@@ -89,7 +92,7 @@ async def list_meetings(
     meeting_type: MeetingType | None = None,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     await _owned_company(session, user, company_id)
     q = select(Meeting).where(
         Meeting.firm_id == user.firm_id, Meeting.company_id == company_id
@@ -109,7 +112,7 @@ async def create_meeting(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     await _owned_company(session, user, company_id)
     meeting = Meeting(
         firm_id=user.firm_id, company_id=company_id, created_by=user.id,
@@ -134,7 +137,7 @@ async def update_meeting(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     meeting = await _owned_meeting(session, user, meeting_id)
     before, after = {}, {}
     for key, value in body.model_dump().items():
@@ -158,7 +161,7 @@ async def generate_pack(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     meeting = await _owned_meeting(session, user, meeting_id)
     company = await _owned_company(session, user, meeting.company_id)
     firm = (await session.execute(select(Firm).where(Firm.id == user.firm_id))).scalar_one()

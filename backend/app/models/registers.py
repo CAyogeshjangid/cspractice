@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import enum
 import uuid
 from datetime import datetime
@@ -57,7 +59,7 @@ class RegisterEntry(Base):
         UUID(as_uuid=True), nullable=False, index=True, default=uuid.uuid4
     )
     version_no: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     delete_reason: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[uuid.UUID] = mapped_column(

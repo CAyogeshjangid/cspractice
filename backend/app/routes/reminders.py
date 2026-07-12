@@ -1,6 +1,8 @@
 """Reminder configuration + dispatch visibility (charter M5, PRD §4.6)."""
 from __future__ import annotations
 
+from typing import Any
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -35,7 +37,7 @@ async def upsert_reminder(
     request: Request,
     user: User = Depends(require_role(Role.executive)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     if any(d < 0 or d > 120 for d in body.days_before):
         raise HTTPException(status_code=422, detail="days_before values must be 0–120")
     row = await cal_repo.get_row(session, user.firm_id, row_id)
@@ -77,7 +79,7 @@ async def get_reminder(
     row_id: uuid.UUID,
     user: User = Depends(require_role(Role.viewer)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     row = await cal_repo.get_row(session, user.firm_id, row_id)
     if row is None:
         raise HTTPException(status_code=404, detail="calendar row not found")
@@ -95,7 +97,7 @@ async def get_reminder(
 async def dead_letter_view(
     user: User = Depends(require_role(Role.manager)),
     session: AsyncSession = Depends(get_session),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Failed + dead dispatches for the firm — silent failure is a defect (§4.6)."""
     rows = (
         (
@@ -132,7 +134,7 @@ async def retry_dispatch(
     request: Request,
     user: User = Depends(require_role(Role.manager)),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> dict[str, Any]:
     dispatch = (
         await session.execute(
             select(ReminderDispatch).where(
