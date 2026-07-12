@@ -205,6 +205,100 @@ build(
     ],
 )
 
+
+build(
+    "shorter_notice_consent.docx",
+    "CONSENT FOR SHORTER NOTICE",
+    [
+        "To,",
+        "The Board of Directors,",
+        "{{ company_name }} (CIN: {{ cin }})",
+        "{{ registered_address }}",
+        "",
+        "Subject: Consent to convene the {{ meeting_label }} at shorter notice "
+        "(proviso to Section 101(1) of the Companies Act, 2013).",
+        "",
+        "I/We, {{ member_name }} (Folio: {{ folio_no }}), being a member of the "
+        "company holding {{ shares_held }} shares, hereby accord consent to the "
+        "convening of the {{ meeting_label }} of the company on {{ meeting_date }} "
+        "at {{ meeting_time }} at {{ venue }} at notice shorter than that "
+        "prescribed under Section 101(1) of the Companies Act, 2013.",
+        "",
+        "_______________________",
+        "{{ member_name }}",
+        "Folio: {{ folio_no }}",
+        "Date: {{ document_date }}",
+        "Place: {{ place }}",
+    ],
+)
+
+build(
+    "auditor_appointment.docx",
+    "INTIMATION OF APPOINTMENT AS STATUTORY AUDITOR",
+    [
+        "To,",
+        "{{ auditor_name }} (FRN: {{ auditor_frn }})",
+        "{{ auditor_address }}",
+        "",
+        "Subject: Appointment as Statutory Auditor under Section 139 of the "
+        "Companies Act, 2013.",
+        "",
+        "We are pleased to inform you that at the {{ meeting_label }} of "
+        "{{ company_name }} (CIN: {{ cin }}) held on {{ meeting_date }}, your "
+        "firm was appointed as the Statutory Auditor of the company, to hold "
+        "office from the financial year ending {{ from_fy_label }} on the terms "
+        "approved thereat.",
+        "",
+        "You are requested to confirm your eligibility under Section 141 of the "
+        "Companies Act, 2013. The company shall file the notice of appointment "
+        "in Form ADT-1 within the prescribed period.",
+        *SIGNING_BLOCK,
+    ],
+)
+
+build(
+    "mr3_secretarial_audit.docx",
+    "FORM No. MR-3 — SECRETARIAL AUDIT REPORT (skeleton)",
+    [
+        "For the financial year ended {{ period_ended }}",
+        "",
+        "To,",
+        "The Members,",
+        "{{ company_name }} (CIN: {{ cin }})",
+        "{{ registered_address }}",
+        "",
+        "We have conducted the secretarial audit of the compliance of applicable "
+        "statutory provisions and the adherence to good corporate practices by "
+        "{{ company_name }} (hereinafter called \"the Company\"). The audit was "
+        "conducted in a manner that provided us a reasonable basis for evaluating "
+        "the corporate conducts / statutory compliances and expressing our "
+        "opinion thereon.",
+        "",
+        "Based on our verification of the Company's books, papers, minute books, "
+        "forms and returns filed and other records maintained by the Company, we "
+        "hereby report that in our opinion, during the audit period covering the "
+        "financial year ended {{ period_ended }}, the Company has complied with "
+        "the statutory provisions listed hereunder:",
+        "",
+        "(i) The Companies Act, 2013 and the rules made thereunder;",
+        "(ii) The Securities Contracts (Regulation) Act, 1956 and rules;",
+        "(iii) The Depositories Act, 1996 and regulations;",
+        "(iv) The Foreign Exchange Management Act, 1999 to the extent applicable;",
+        "(v) Other laws specifically applicable to the Company as identified by "
+        "the management: {{ other_applicable_laws }}",
+        "",
+        "OBSERVATIONS / QUALIFICATIONS:",
+        "{{ observations }}",
+        "",
+        "_______________________",
+        "{{ pcs_name }}",
+        "Practising Company Secretary",
+        "Membership No.: {{ pcs_membership_no }} · COP No.: {{ pcs_cop_no }}",
+        "Date: {{ document_date }}",
+        "Place: {{ place }}",
+    ],
+)
+
 manifest = [
     {"code": "BOARD-NOTICE", "name": "Board Meeting Notice",
      "governing_reference": "S.173 / SS-1", "file": "board_notice.docx", "version": 1},
@@ -218,6 +312,12 @@ manifest = [
      "governing_reference": "SS-1 / SS-2", "file": "attendance_sheet.docx", "version": 1},
     {"code": "LIST-DIRECTORS", "name": "List of Directors",
      "governing_reference": "S.170", "file": "list_of_directors.docx", "version": 1},
+    {"code": "SHORTER-NOTICE", "name": "Consent for Shorter Notice",
+     "governing_reference": "S.101(1) proviso / SS-2", "file": "shorter_notice_consent.docx", "version": 1},
+    {"code": "AUDITOR-APPOINTMENT", "name": "Auditor Appointment Intimation",
+     "governing_reference": "S.139 / S.141", "file": "auditor_appointment.docx", "version": 1},
+    {"code": "MR-3", "name": "Secretarial Audit Report (skeleton)",
+     "governing_reference": "S.204 / R.9 / Form MR-3", "file": "mr3_secretarial_audit.docx", "version": 1},
     {"code": "LIST-SHAREHOLDERS", "name": "List of Shareholders",
      "governing_reference": "S.88", "file": "list_of_shareholders.docx", "version": 1},
 ]

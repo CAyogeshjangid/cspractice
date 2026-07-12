@@ -27,7 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.models import Company, DocTemplate, Firm, Letterhead
+from app.models import Auditor, AuditorAppointment, Company, DocTemplate, Firm, Letterhead
 from app.repositories import masters as masters_repo
 
 TEMPLATES_DIR = Path(__file__).resolve().parents[3] / "templates" / "docx"
@@ -128,6 +128,30 @@ async def build_context(
         ],
         "total_shares": str(sum(int(s.shares or 0) for s in shareholders)),
     }
+    # current statutory auditor (open-ended M11 appointment) — server-derived,
+    # so the Auditor Appointment letter names the firm actually on record.
+    # Absent appointment → keys stay absent → MissingContext names them, telling
+    # the user to record the appointment (or pass explicit params).
+    appointment = (
+        await session.execute(
+            select(AuditorAppointment, Auditor)
+            .join(Auditor, AuditorAppointment.auditor_id == Auditor.id)
+            .where(
+                AuditorAppointment.firm_id == firm.id,
+                AuditorAppointment.company_id == company.id,
+                AuditorAppointment.appointed_to_fy.is_(None),
+            )
+            .order_by(AuditorAppointment.appointed_from_fy.desc())
+            .limit(1)
+        )
+    ).first()
+    if appointment is not None:
+        engagement, auditor = appointment
+        computed["auditor_name"] = auditor.firm_name
+        computed["auditor_frn"] = auditor.frn
+        computed["auditor_address"] = auditor.address or ""
+        computed["from_fy_label"] = f"31-03-{engagement.appointed_from_fy}"
+
     # caller params fill the rest (venue, times, business items, financials);
     # computed values always win so master data cannot be spoofed per-request
     return {**params, **computed}
@@ -146,7 +170,9 @@ def render(template_file: str, context: dict[str, Any]) -> bytes:
 
     from jinja2 import Environment
 
-    doc.render(context, jinja_env=Environment(undefined=StrictUndefined, autoescape=False))
+    # autoescape=True: docx bodies are XML — a literal '&' or '<' in company
+    # or auditor names must be escaped or Word silently drops/corrupts it
+    doc.render(context, jinja_env=Environment(undefined=StrictUndefined, autoescape=True))
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()

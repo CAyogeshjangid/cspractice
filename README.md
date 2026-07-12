@@ -28,6 +28,7 @@ email reminders, and Word document generation.
 | M9 Phase 2: Statutory Registers (14 registers, append-only §8) | ✅ |
 | M10 Phase 2: Meeting Scheduler (Notice/Minutes/Attendance packs) | ✅ |
 | M11 Phase 2: Practice masters (Auditors, PCS, DSC tracker) | ✅ |
+| M12 Phase 2: Annual Filing Suite (Shorter Notice, Auditor Appt, MR-3) | ✅ |
 
 ## Development
 

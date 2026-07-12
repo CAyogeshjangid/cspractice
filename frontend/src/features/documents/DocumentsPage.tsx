@@ -101,6 +101,9 @@ const PARAM_HINTS: Record<string, string[]> = {
   "MEETING-MINUTES": ["meeting_type", "meeting_date", "meeting_time", "venue", "chairperson", "agenda_items (one per line)", "conclusion_time"],
   "ATTENDANCE-SHEET": ["meeting_type", "meeting_date", "venue"],
   "DIRECTORS-REPORT": ["revenue", "profit_before_tax", "profit_after_tax", "state_of_affairs", "dividend", "transfer_to_reserves", "board_meetings_held", "other_disclosures"],
+  "SHORTER-NOTICE": ["meeting_label", "meeting_date", "meeting_time", "venue", "member_name", "folio_no", "shares_held"],
+  "AUDITOR-APPOINTMENT": ["meeting_label", "meeting_date"],
+  "MR-3": ["period_ended", "observations", "other_applicable_laws", "pcs_name", "pcs_membership_no", "pcs_cop_no"],
 };
 const LIST_PARAMS = new Set(["ordinary_business", "special_business", "agenda_items"]);
 const COMMON = ["signatory_name", "signatory_designation", "place"];

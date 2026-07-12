@@ -42,6 +42,27 @@
     "version": 1
   },
   {
+    "code": "SHORTER-NOTICE",
+    "name": "Consent for Shorter Notice",
+    "governing_reference": "S.101(1) proviso / SS-2",
+    "file": "shorter_notice_consent.docx",
+    "version": 1
+  },
+  {
+    "code": "AUDITOR-APPOINTMENT",
+    "name": "Auditor Appointment Intimation",
+    "governing_reference": "S.139 / S.141",
+    "file": "auditor_appointment.docx",
+    "version": 1
+  },
+  {
+    "code": "MR-3",
+    "name": "Secretarial Audit Report (skeleton)",
+    "governing_reference": "S.204 / R.9 / Form MR-3",
+    "file": "mr3_secretarial_audit.docx",
+    "version": 1
+  },
+  {
     "code": "LIST-SHAREHOLDERS",
     "name": "List of Shareholders",
     "governing_reference": "S.88",

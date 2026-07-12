@@ -178,3 +178,59 @@ async def test_rbac_and_isolation(firm, make_client) -> None:
     await register_firm(rival, "rival-docs@example.com", "Rival")
     assert (await rival.get(f"/api/v1/companies/{cid}/documents")).status_code == 404
     assert (await rival.get(f"/api/v1/documents/{doc_id}/download")).status_code == 404
+
+async def test_annual_filing_suite_templates_render(firm) -> None:
+    """M12: Shorter Notice, Auditor Appointment, MR-3 render fully resolved."""
+    cid = await setup_company(firm)
+    common = {"signatory_name": "R. Sharma", "signatory_designation": "CS",
+              "place": "Mumbai"}
+
+    # auditor appointment letter pulls the CURRENT auditor from M11 records
+    from tests.conftest import post as _post
+
+    auditor_id = (await _post(firm.manager, "/auditors", {
+        "firm_name": "S. Auditors & Co.", "frn": "654321W",
+        "address": "5 Audit Street, Mumbai",
+    })).json()["id"]
+    await _post(firm.manager, f"/companies/{cid}/auditor-appointments", {
+        "auditor_id": auditor_id, "appointed_from_fy": 2026,
+    })
+
+    param_sets = {
+        "SHORTER-NOTICE": {"meeting_label": "Annual General Meeting",
+                           "meeting_date": "2026-09-30", "meeting_time": "11:00 AM",
+                           "venue": "Registered Office", "member_name": "Holder One",
+                           "folio_no": "F001", "shares_held": "9000", "place": "Mumbai"},
+        "AUDITOR-APPOINTMENT": {**common, "meeting_label": "Annual General Meeting",
+                                "meeting_date": "2026-09-30"},
+        "MR-3": {"period_ended": "31-03-2026", "observations": "None.",
+                 "other_applicable_laws": "None identified.", "pcs_name": "R. Sharma",
+                 "pcs_membership_no": "F1234", "pcs_cop_no": "C567", "place": "Mumbai"},
+    }
+    for code, params in param_sets.items():
+        await validate(firm, code)
+        res = await post(firm.manager, f"/companies/{cid}/documents",
+                         {"template_code": code, "letterhead": "none", "params": params})
+        assert res.status_code == 201, f"{code}: {res.text}"
+        text = docx_text((await firm.manager.get(res.json()["download"])).content)
+        assert "{{" not in text and "{%" not in text, f"{code}: unresolved fields"
+
+    # the letter names the auditor ON RECORD — not caller-supplied
+    library = (await firm.viewer.get(f"/api/v1/companies/{cid}/documents")).json()
+    letter = next(d for d in library if d["template_code"] == "AUDITOR-APPOINTMENT")
+    text = docx_text((await firm.viewer.get(letter["download"])).content)
+    assert "S. Auditors & Co." in text and "654321W" in text
+    assert "5 Audit Street" in text
+
+
+async def test_auditor_letter_without_appointment_reports_missing_fields(firm) -> None:
+    cid = await setup_company(firm)
+    await validate(firm, "AUDITOR-APPOINTMENT")
+    res = await post(firm.manager, f"/companies/{cid}/documents", {
+        "template_code": "AUDITOR-APPOINTMENT", "letterhead": "none",
+        "params": {"signatory_name": "R", "signatory_designation": "CS",
+                   "place": "Mumbai", "meeting_label": "AGM", "meeting_date": "2026-09-30"},
+    })
+    assert res.status_code == 422
+    missing = res.json()["detail"]["missing"]
+    assert "auditor_name" in missing  # record the appointment first
