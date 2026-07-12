@@ -15,6 +15,11 @@ class RuleCategory(str, enum.Enum):
     roc = "roc"
     income_tax = "income_tax"
     gst = "gst"
+    # Phase 2 categories (PRD §5)
+    fema = "fema"
+    pf = "pf"
+    esic = "esic"
+    esop = "esop"
 
 
 class ComplianceRule(IdTimestamps, Base):

@@ -8,6 +8,7 @@ import { useSession } from "./session";
 const NAV = [
   { to: "/", label: "Companies" },
   { to: "/calendar", label: "Compliance Calendar" },
+  { to: "/registers", label: "Statutory Registers" },
   { to: "/documents", label: "Documents" },
   { to: "/activity", label: "Activity Log" },
   { to: "/team", label: "Team & Settings" },

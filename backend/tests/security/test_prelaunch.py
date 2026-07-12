@@ -34,6 +34,7 @@ END $$;"""))
         await conn_exec.execute(text("REVOKE UPDATE, DELETE ON activity_log FROM praxis_app"))
         await conn_exec.execute(text("REVOKE UPDATE ON rule_version FROM praxis_app"))
         await conn_exec.execute(text("REVOKE DELETE ON rule_version FROM praxis_app"))
+        await conn_exec.execute(text("REVOKE UPDATE, DELETE ON register_entry FROM praxis_app"))
 
         grants = (await conn_exec.execute(text("""
             SELECT privilege_type FROM information_schema.role_table_grants
@@ -47,6 +48,13 @@ END $$;"""))
             WHERE grantee = 'praxis_app' AND table_name = 'rule_version'
         """))).scalars().all()
         assert "UPDATE" not in rv_grants and "DELETE" not in rv_grants
+
+        reg_grants = (await conn_exec.execute(text("""
+            SELECT privilege_type FROM information_schema.role_table_grants
+            WHERE grantee = 'praxis_app' AND table_name = 'register_entry'
+        """))).scalars().all()
+        assert "INSERT" in reg_grants  # append allowed
+        assert "UPDATE" not in reg_grants and "DELETE" not in reg_grants  # PRD §8
 
 
 def test_env_example_covers_every_setting() -> None:

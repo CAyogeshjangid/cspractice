@@ -25,6 +25,7 @@ email reminders, and Word document generation.
 | M6 Document generation (docxtpl, validation stamps, library) | ✅ |
 | M7 Hardening (backup/restore, prod compose, runbook, prelaunch tests) | ✅ code-complete — staging ZAP pending |
 | M8 Frontend (shell, calendar UI, documents, team) + Chromium E2E | ✅ |
+| M9 Phase 2: Statutory Registers (14 registers, append-only §8) | ✅ |
 
 ## Development
 
