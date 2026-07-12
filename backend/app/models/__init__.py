@@ -20,15 +20,17 @@ from app.models.masters import (
     Shareholder,
 )
 from app.models.meetings import Meeting, MeetingStatus, MeetingType
+from app.models.practice import Auditor, AuditorAppointment, DscToken, PcsProfessional
 from app.models.registers import RegisterEntry, RegisterType
 from app.models.rules import ComplianceRule, RuleCategory, RuleExtension, RuleVersion
 from app.models.tenancy import Firm, Invitation, Role, User
 
 __all__ = [
-    "ActivityLog", "Base", "CalendarRow", "Company", "CompanyFyAttributes",
-    "ComplianceRule", "Director", "DirectorDisclosure", "DispatchStatus", "DocTemplate", "Firm",
+    "ActivityLog", "Auditor", "AuditorAppointment", "Base", "CalendarRow", "Company", "CompanyFyAttributes",
+    "ComplianceRule", "Director", "DirectorDisclosure", "DispatchStatus", "DocTemplate",
+    "DscToken", "Firm",
     "GeneratedDocument", "Letterhead", "Meeting", "MeetingStatus", "MeetingType",
-    "RegisterEntry", "RegisterType",
+    "PcsProfessional", "RegisterEntry", "RegisterType",
     "Industry", "Invitation", "NeedsReviewReason", "ProfessionalGroup",
     "ReminderConfig", "ReminderDispatch", "Role", "RowStatus", "RuleCategory",
     "RuleExtension", "RuleVersion", "Shareholder", "SubjectType", "User",

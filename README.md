@@ -27,6 +27,7 @@ email reminders, and Word document generation.
 | M8 Frontend (shell, calendar UI, documents, team) + Chromium E2E | ✅ |
 | M9 Phase 2: Statutory Registers (14 registers, append-only §8) | ✅ |
 | M10 Phase 2: Meeting Scheduler (Notice/Minutes/Attendance packs) | ✅ |
+| M11 Phase 2: Practice masters (Auditors, PCS, DSC tracker) | ✅ |
 
 ## Development
 

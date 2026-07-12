@@ -21,6 +21,7 @@ from app.routes import (
     health,
     imports,
     meetings,
+    practice,
     registers,
     reminders,
     shareholders,
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(activity.router)
     app.include_router(registers.router)
     app.include_router(meetings.router)
+    app.include_router(practice.router)
     app.include_router(team.router)
     return app
 

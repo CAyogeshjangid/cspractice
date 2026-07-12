@@ -10,6 +10,7 @@ const NAV = [
   { to: "/calendar", label: "Compliance Calendar" },
   { to: "/registers", label: "Statutory Registers" },
   { to: "/meetings", label: "Meetings" },
+  { to: "/practice", label: "Practice Masters" },
   { to: "/documents", label: "Documents" },
   { to: "/activity", label: "Activity Log" },
   { to: "/team", label: "Team & Settings" },
