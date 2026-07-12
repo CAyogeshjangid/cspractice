@@ -2,13 +2,27 @@
  * carries X-CSRF-Token matching the praxis_csrf cookie (charter C3). */
 
 let csrfToken: string | null = null;
+let csrfInFlight: Promise<string> | null = null;
 
 async function ensureCsrf(): Promise<string> {
   if (csrfToken) return csrfToken;
-  const res = await fetch("/api/v1/auth/csrf", { credentials: "include" });
-  const body = (await res.json()) as { csrf_token: string };
-  csrfToken = body.csrf_token;
-  return csrfToken;
+  // dedupe concurrent bootstraps: two racing fetches could leave the cached
+  // token and the cookie from DIFFERENT responses -> guaranteed 403s
+  csrfInFlight ??= (async () => {
+    const res = await fetch("/api/v1/auth/csrf", { credentials: "include" });
+    if (!res.ok) {
+      // fail LOUDLY: a silent failure here caches undefined and every
+      // mutation afterwards dies with a misleading CSRF error
+      const detail = (await res.json().catch(() => ({}))) as { detail?: string };
+      throw new ApiError(res.status, detail.detail ?? `CSRF bootstrap failed (${res.status})`);
+    }
+    const body = (await res.json()) as { csrf_token: string };
+    csrfToken = body.csrf_token;
+    return csrfToken;
+  })().finally(() => {
+    csrfInFlight = null;
+  });
+  return csrfInFlight;
 }
 
 export class ApiError extends Error {

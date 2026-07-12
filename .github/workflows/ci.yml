@@ -87,6 +87,7 @@ jobs:
       CSRF_SECRET: ci-only-csrf-secret-0123456789abcdefghijklmnopqr
       CORS_ORIGINS: http://localhost:5173
       STORAGE_DIR: /tmp/praxis-e2e-docs
+      AUTH_RATE_LIMIT_PER_MINUTE: "1000"   # E2E drives auth fast; not a prod value
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -97,6 +98,7 @@ jobs:
         working-directory: backend
       - run: python -m app.services.documents
         working-directory: backend
+      - run: python scripts/seed_e2e.py    # TEST-ONLY rules + test-stamped templates
       - run: nohup python -m uvicorn app.main:create_app --factory --port 8000 &
         working-directory: backend
       - uses: actions/setup-node@v4
