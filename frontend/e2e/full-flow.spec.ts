@@ -48,6 +48,22 @@ test("register → invite → import → calendar → remind → generate", asyn
   await expect(page.getByText(/Imported: 3 created/)).toBeVisible();
   await expect(page.getByRole("cell", { name: "Alpha Textiles Pvt Ltd" })).toBeVisible();
 
+  // ---- per-master import: directors from Excel on the company detail tab
+  await page
+    .locator("tr", { hasText: "Alpha Textiles Pvt Ltd" })
+    .getByRole("link", { name: /Open/ })
+    .click();
+  // wait for the detail page — grabbing the file input mid-navigation can hit
+  // the companies page's (detaching) input and the upload silently no-ops
+  await expect(page.getByRole("heading", { name: "Alpha Textiles Pvt Ltd" })).toBeVisible();
+  await page.locator('input[type="file"]').setInputFiles(`${FIXTURES}/directors.xlsx`);
+  await expect(page.getByText(/Imported: 2 created, 0 already present/)).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Asha Mehta" })).toBeVisible();
+  // re-import of the same file is idempotent — skipped, never duplicated
+  await page.locator('input[type="file"]').setInputFiles(`${FIXTURES}/directors.xlsx`);
+  await expect(page.getByText(/Imported: 0 created, 2 already present/)).toBeVisible();
+  await page.getByRole("link", { name: "Companies" }).click();
+
   // ---- calendar: generate from the TEST-ONLY ruleset
   await page.locator("select").first().selectOption({ label: "Alpha Textiles Pvt Ltd" });
   await page.getByRole("link", { name: "Compliance Calendar" }).click();

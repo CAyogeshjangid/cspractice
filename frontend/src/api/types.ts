@@ -116,4 +116,5 @@ export interface ImportReport {
   updated?: number;
   restored?: number;
   unchanged?: number;
+  skipped?: number;
 }

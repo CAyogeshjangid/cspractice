@@ -57,6 +57,12 @@ PORTFOLIO = [
 ]
 
 
+DIRECTORS = [
+    ("Asha Mehta", "00000101", "Managing Director"),
+    ("Ravi Kulkarni", "00000102", "Director"),
+]
+
+
 def build_portfolio_xlsx() -> Path:
     from openpyxl import Workbook
 
@@ -68,6 +74,24 @@ def build_portfolio_xlsx() -> Path:
     ws.append(["cin", "name", "agm_date", "paidup_capital"])
     for cin, name, agm, capital in PORTFOLIO:
         ws.append([cin, name, agm or None, capital])
+    wb.save(out)
+    return out
+
+
+def build_directors_xlsx() -> Path:
+    """Fixture for the per-master import UI (M15/M16) — headers must match
+    app.services.imports.MASTER_SPECS['directors']."""
+    from openpyxl import Workbook
+
+    fixtures = ROOT / "frontend" / "e2e" / "fixtures"
+    fixtures.mkdir(parents=True, exist_ok=True)
+    out = fixtures / "directors.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["name", "din", "din_status", "din_allocation_date", "designation",
+               "appointment_date", "cessation_date"])
+    for name, din, designation in DIRECTORS:
+        ws.append([name, din, None, None, designation, None, None])
     wb.save(out)
     return out
 
@@ -108,5 +132,7 @@ async def seed_db() -> None:
 if __name__ == "__main__":
     path = build_portfolio_xlsx()
     print(f"portfolio fixture: {path}")  # noqa: T201
+    path = build_directors_xlsx()
+    print(f"directors fixture: {path}")  # noqa: T201
     asyncio.run(seed_db())
     print("e2e seed complete")  # noqa: T201

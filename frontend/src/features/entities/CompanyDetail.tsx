@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
-import type { Company, Director, Shareholder } from "../../api/types";
+import type { Company, Director, ImportReport, Shareholder } from "../../api/types";
 import { Badge, Button, Card, Empty, ErrorText, Field, Input, Table } from "../../components/ds";
 
 type Tab = "directors" | "shareholders" | "fy";
@@ -146,6 +146,91 @@ function Info(props: { label: string; value: string; mono?: boolean }) {
   );
 }
 
+/** Excel template / import / export controls for a per-company master
+ *  (directors or shareholders) — same contract as the companies list:
+ *  all-or-nothing import, row-level 422 report, idempotent skips. */
+function useMasterIo(companyId: string, master: "directors" | "shareholders") {
+  const queryClient = useQueryClient();
+  const [report, setReport] = useState<ImportReport | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const base = `/companies/${companyId}/${master}`;
+
+  const importFile = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return api.upload<ImportReport>(`${base}/import`, form);
+    },
+    onSuccess: (result) => {
+      setReport(result);
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: [master, companyId] });
+    },
+    onError: (err) => {
+      // 422 carries the row-level validation report
+      const detail = (err as { detail?: ImportReport }).detail;
+      setReport(detail && Array.isArray(detail.errors) ? detail : null);
+      setError(err);
+    },
+  });
+
+  const actions = (
+    <>
+      <a href={`/api/v1${base}/import/template`} className="text-sm text-indigo-600 hover:underline">
+        Import template
+      </a>
+      <a href={`/api/v1${base}/export`} className="text-sm text-indigo-600 hover:underline">
+        Export
+      </a>
+      <label className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
+        Import Excel
+        <input
+          type="file"
+          accept=".xlsx"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) importFile.mutate(file);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    </>
+  );
+
+  const reportView = (
+    <>
+      {error != null && !report && <ErrorText error={error} />}
+      {report && (
+        <div className="mb-3 rounded-md bg-slate-50 p-3 text-sm">
+          {report.errors.length === 0 ? (
+            <p className="text-emerald-700">
+              Imported: {report.created ?? 0} created, {report.skipped ?? 0} already present
+              (skipped).
+            </p>
+          ) : (
+            <>
+              <p className="mb-1 font-medium text-rose-700">
+                Nothing was imported — fix these rows and re-upload (all-or-nothing):
+              </p>
+              <ul className="list-inside list-disc text-rose-700">
+                {report.errors.slice(0, 20).map((e, i) => (
+                  <li key={i}>
+                    Row {e.row}, {e.column}: {e.error}
+                  </li>
+                ))}
+                {report.errors.length > 20 && <li>…and {report.errors.length - 20} more</li>}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  return { actions, reportView };
+}
+
 function Directors(props: { companyId: string }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(null);
@@ -162,9 +247,11 @@ function Directors(props: { companyId: string }) {
     },
     onError: setError,
   });
+  const io = useMasterIo(props.companyId, "directors");
 
   return (
-    <Card title="Directors">
+    <Card title="Directors" actions={io.actions}>
+      {io.reportView}
       <ErrorText error={error} />
       <form
         className="mb-3 flex flex-wrap items-end gap-2"
@@ -236,9 +323,11 @@ function Shareholders(props: { companyId: string }) {
     },
     onError: setError,
   });
+  const io = useMasterIo(props.companyId, "shareholders");
 
   return (
-    <Card title="Shareholders (cap table)">
+    <Card title="Shareholders (cap table)" actions={io.actions}>
+      {io.reportView}
       <ErrorText error={error} />
       {holders.data?.percentage_warning && (
         <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">

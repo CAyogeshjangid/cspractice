@@ -32,6 +32,7 @@ email reminders, and Word document generation.
 | M13 Phase 2: LLP entity type (masters, partners, Form 11/8 papers) | ✅ |
 | M14 Dogfood: full-flow browser E2E, firm-zero runbook | ✅ |
 | M15 Debt closure: masters Excel import/export, mypy --strict | ✅ |
+| M16 Per-master import/export UI on company detail (+E2E) | ✅ |
 
 ## Development
 
