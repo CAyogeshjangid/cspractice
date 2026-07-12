@@ -20,6 +20,7 @@ from app.routes import (
     firm,
     health,
     imports,
+    llps,
     meetings,
     practice,
     registers,
@@ -70,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(registers.router)
     app.include_router(meetings.router)
     app.include_router(practice.router)
+    app.include_router(llps.router)
     app.include_router(team.router)
     return app
 

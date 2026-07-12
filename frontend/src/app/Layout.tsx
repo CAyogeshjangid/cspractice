@@ -7,6 +7,7 @@ import { useSession } from "./session";
 
 const NAV = [
   { to: "/", label: "Companies" },
+  { to: "/llps", label: "LLPs" },
   { to: "/calendar", label: "Compliance Calendar" },
   { to: "/registers", label: "Statutory Registers" },
   { to: "/meetings", label: "Meetings" },

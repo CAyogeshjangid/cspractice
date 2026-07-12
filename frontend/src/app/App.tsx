@@ -6,6 +6,7 @@ import { CalendarPage } from "../features/calendar/CalendarPage";
 import { CompanyDetail } from "../features/entities/CompanyDetail";
 import { CompaniesPage } from "../features/entities/CompaniesPage";
 import { DocumentsPage } from "../features/documents/DocumentsPage";
+import { LlpsPage } from "../features/llps/LlpsPage";
 import { MeetingsPage } from "../features/meetings/MeetingsPage";
 import { PracticeMastersPage } from "../features/practice/PracticeMastersPage";
 import { RegistersPage } from "../features/registers/RegistersPage";
@@ -46,6 +47,7 @@ export function App() {
               <Route path="/registers" element={<RegistersPage />} />
               <Route path="/meetings" element={<MeetingsPage />} />
               <Route path="/practice" element={<PracticeMastersPage />} />
+              <Route path="/llps" element={<LlpsPage />} />
               <Route path="/team" element={<TeamPage />} />
               <Route path="/activity" element={<ActivityPage />} />
             </Route>
