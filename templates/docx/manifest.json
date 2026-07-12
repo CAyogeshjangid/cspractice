@@ -1,5 +1,12 @@
 [
   {
+    "code": "BOARD-NOTICE",
+    "name": "Board Meeting Notice",
+    "governing_reference": "S.173 / SS-1",
+    "file": "board_notice.docx",
+    "version": 1
+  },
+  {
     "code": "AGM-NOTICE",
     "name": "AGM Notice",
     "governing_reference": "S.101 / SS-2",

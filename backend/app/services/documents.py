@@ -160,6 +160,7 @@ async def generate(
     letterhead: Letterhead,
     params: dict[str, Any],
     actor_user_id: uuid.UUID,
+    context_overrides: dict[str, Any] | None = None,
 ) -> tuple[uuid.UUID, str]:
     """→ (generated_document id, absolute file path). Raises TemplateNotUsable /
     MissingContext for the route to map to 422."""
@@ -175,6 +176,12 @@ async def generate(
         )
 
     context = await build_context(session, firm, company, letterhead, params)
+    if context_overrides:
+        # SERVER-ONLY: never exposed on the generic route. Used by trusted
+        # services (meeting packs) that derive values from master data
+        # themselves — e.g. an attendance list limited to the meeting's
+        # participants, still sourced from the directors register.
+        context.update(context_overrides)
     rendered = render(template.file_path, context)
 
     storage = Path(get_settings().storage_dir) / str(firm.id) / str(company.id)

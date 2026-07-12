@@ -186,7 +186,28 @@ build(
     ],
 )
 
+
+build(
+    "board_notice.docx",
+    "NOTICE OF MEETING OF THE BOARD OF DIRECTORS",
+    [
+        "NOTICE is hereby given that a {{ meeting_label }} of the Board of "
+        "Directors of {{ company_name }} (CIN: {{ cin }}) will be held on "
+        "{{ meeting_date }} at {{ meeting_time }} at {{ venue }}.",
+        "",
+        "AGENDA:",
+        "{% for item in agenda_items %}",
+        "{{ loop.index }}. {{ item }}",
+        "{% endfor %}",
+        "",
+        "You are requested to make it convenient to attend the meeting.",
+        *SIGNING_BLOCK,
+    ],
+)
+
 manifest = [
+    {"code": "BOARD-NOTICE", "name": "Board Meeting Notice",
+     "governing_reference": "S.173 / SS-1", "file": "board_notice.docx", "version": 1},
     {"code": "AGM-NOTICE", "name": "AGM Notice", "governing_reference": "S.101 / SS-2",
      "file": "agm_notice.docx", "version": 1},
     {"code": "DIRECTORS-REPORT", "name": "Directors' Report (skeleton)",
