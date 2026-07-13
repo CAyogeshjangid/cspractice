@@ -109,8 +109,17 @@ class ReminderDispatch(IdTimestamps, Base):
     firm_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("firm.id"), nullable=False, index=True
     )
-    reminder_config_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("reminder_config.id"), nullable=False, index=True
+    # A dispatch targets a subject. "calendar_row" (via reminder_config) is the
+    # M5 default; "dsc_token" (via dsc_token_id) reuses this same pipeline for
+    # certificate-expiry reminders (M18) — same dead-letter view, retry, worker.
+    subject_kind: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="calendar_row"
+    )
+    reminder_config_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("reminder_config.id"), index=True
+    )
+    dsc_token_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dsc_token.id"), index=True
     )
     scheduled_for: Mapped[date] = mapped_column(Date, nullable=False)
     sent_at: Mapped[date | None] = mapped_column(Date)

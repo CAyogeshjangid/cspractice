@@ -14,6 +14,7 @@ from app import audit
 from app.db import get_session
 from app.models import (
     DispatchStatus,
+    DscToken,
     ReminderConfig,
     ReminderDispatch,
     Role,
@@ -98,11 +99,13 @@ async def dead_letter_view(
     user: User = Depends(require_role(Role.manager)),
     session: AsyncSession = Depends(get_session),
 ) -> list[dict[str, Any]]:
-    """Failed + dead dispatches for the firm — silent failure is a defect (§4.6)."""
+    """Failed + dead dispatches for the firm — silent failure is a defect
+    (§4.6). Covers both calendar and DSC-expiry reminders (shared pipeline)."""
     rows = (
         (
             await session.execute(
-                select(ReminderDispatch)
+                select(ReminderDispatch, DscToken.holder_name)
+                .outerjoin(DscToken, ReminderDispatch.dsc_token_id == DscToken.id)
                 .where(
                     ReminderDispatch.firm_id == user.firm_id,
                     ReminderDispatch.status.in_(
@@ -113,7 +116,6 @@ async def dead_letter_view(
                 .limit(200)
             )
         )
-        .scalars()
         .all()
     )
     return [
@@ -123,8 +125,10 @@ async def dead_letter_view(
             "status": d.status.value,
             "attempt_count": d.attempt_count,
             "error": d.error,
+            "subject_kind": d.subject_kind,
+            "subject_label": holder if d.subject_kind == "dsc_token" else None,
         }
-        for d in rows
+        for d, holder in rows
     ]
 
 

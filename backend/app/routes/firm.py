@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
+
+from app.services.reminders import DSC_SETTINGS_KEY
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,6 +65,49 @@ async def put_email_settings(
     )
     await session.commit()
     return await get_email_settings(user, session)
+
+
+class DscReminderSettingsIn(BaseModel):
+    """Firm-level DSC certificate-expiry reminder policy (M18). Recipients are
+    an explicit firm list — DSC tokens have no per-token owner to fall back on."""
+
+    days_before: list[int] = Field(default_factory=list, max_length=10)
+    recipients: list[EmailStr] = Field(default_factory=list, max_length=10)
+
+
+@router.put("/dsc-reminders")
+async def put_dsc_reminders(
+    body: DscReminderSettingsIn,
+    request: Request,
+    user: User = Depends(require_role(Role.partner)),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    if any(d < 0 or d > 365 for d in body.days_before):
+        raise HTTPException(status_code=422, detail="days_before values must be 0–365")
+    days = sorted({int(d) for d in body.days_before}, reverse=True)
+    recipients = [str(r) for r in body.recipients]
+    firm = (await session.execute(select(Firm).where(Firm.id == user.firm_id))).scalar_one()
+    config = {"days_before": days, "recipients": recipients}
+    firm.settings = {**(firm.settings or {}), DSC_SETTINGS_KEY: config}
+    await audit.record(
+        session, firm_id=user.firm_id, actor_user_id=user.id, entity_type="firm",
+        entity_id=firm.id, action="dsc_reminders_update", after=config, request=request,
+    )
+    await session.commit()
+    return config
+
+
+@router.get("/dsc-reminders")
+async def get_dsc_reminders(
+    user: User = Depends(require_role(Role.viewer)),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    firm = (await session.execute(select(Firm).where(Firm.id == user.firm_id))).scalar_one()
+    config = (firm.settings or {}).get(DSC_SETTINGS_KEY) or {}
+    return {
+        "days_before": config.get("days_before", []),
+        "recipients": config.get("recipients", []),
+    }
 
 
 @router.get("/email-settings")

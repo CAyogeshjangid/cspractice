@@ -16,7 +16,11 @@ from arq.worker import Retry
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config import get_settings
-from app.services.reminders import deliver, schedule_due_reminders
+from app.services.reminders import (
+    deliver,
+    schedule_dsc_reminders,
+    schedule_due_reminders,
+)
 
 RETRY_BACKOFF_SECONDS = (60, 300, 900)  # 1m, 5m, 15m
 
@@ -41,9 +45,12 @@ async def send_reminder_job(ctx: dict[str, Any], dispatch_id: str) -> str:
 
 
 async def schedule_reminders_job(ctx: dict[str, Any]) -> int:
-    """Daily: create due dispatches, then enqueue anything queued."""
+    """Daily: create due dispatches (calendar + DSC expiry), then enqueue
+    anything queued through the shared send path."""
     async with ctx["session_factory"]() as session:
-        created = await schedule_due_reminders(session, date.today())
+        today = date.today()
+        created = await schedule_due_reminders(session, today)
+        created += await schedule_dsc_reminders(session, today)
 
         from sqlalchemy import select
 

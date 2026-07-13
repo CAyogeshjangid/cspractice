@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ApiError } from "../../api/client";
-import type { DeadLetter, Invitation, TeamMember } from "../../api/types";
+import type { DeadLetter, DscReminderPolicy, Invitation, TeamMember } from "../../api/types";
 import { Badge, Button, Card, Empty, ErrorText, Field, Input, Select, Table } from "../../components/ds";
 
 export function TeamPage() {
@@ -11,6 +11,7 @@ export function TeamPage() {
       <Invitations />
       <DeadLetterView />
       <EmailSettings />
+      <DscReminderSettings />
     </div>
   );
 }
@@ -142,10 +143,19 @@ function DeadLetterView() {
       {items.data?.length === 0 ? (
         <Empty>No failed reminder dispatches — good.</Empty>
       ) : (
-        <Table headers={["Scheduled", "Status", "Attempts", "Error", ""]}>
+        <Table headers={["Scheduled", "Subject", "Status", "Attempts", "Error", ""]}>
           {(items.data ?? []).map((d) => (
             <tr key={d.id}>
               <td className="px-2 py-2">{d.scheduled_for}</td>
+              <td className="px-2 py-2 text-xs">
+                {d.subject_kind === "dsc_token" ? (
+                  <>
+                    <Badge tone="info">DSC</Badge> {d.subject_label}
+                  </>
+                ) : (
+                  <Badge>calendar</Badge>
+                )}
+              </td>
               <td className="px-2 py-2">
                 <Badge tone="warn">{d.status}</Badge>
               </td>
@@ -254,6 +264,68 @@ function EmailSettings() {
         )}
         <div className="col-span-3">
           <Button type="submit">Save provider</Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function DscReminderSettings() {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<unknown>(null);
+  const policy = useQuery({
+    queryKey: ["dsc-reminders"],
+    queryFn: () => api.get<DscReminderPolicy>("/firm/dsc-reminders"),
+  });
+  const save = useMutation({
+    mutationFn: (body: DscReminderPolicy) => api.put("/firm/dsc-reminders", body),
+    onSuccess: () => {
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["dsc-reminders"] });
+    },
+    onError: setError,
+  });
+
+  return (
+    <Card title="DSC expiry reminders (Partner only)">
+      <p className="mb-2 text-sm text-slate-600">
+        Email the recipients below this many days before any DSC token expires. Recipients are a
+        firm-wide list — DSC tokens have no individual owner. Uses the same email provider,
+        retry and dead-letter handling as calendar reminders.
+      </p>
+      <ErrorText error={error} />
+      <form
+        className="grid grid-cols-2 gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          const days = String(f.get("days_before") ?? "")
+            .split(",")
+            .map((s) => Number(s.trim()))
+            .filter((n) => Number.isFinite(n) && n >= 0);
+          const recipients = String(f.get("recipients") ?? "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          save.mutate({ days_before: days, recipients });
+        }}
+      >
+        <Field label="Days before expiry (comma-separated)">
+          <Input
+            name="days_before"
+            defaultValue={(policy.data?.days_before ?? []).join(", ")}
+            placeholder="30, 7"
+          />
+        </Field>
+        <Field label="Recipient emails (comma-separated)">
+          <Input
+            name="recipients"
+            defaultValue={(policy.data?.recipients ?? []).join(", ")}
+            placeholder="compliance@firm.example"
+          />
+        </Field>
+        <div className="col-span-2">
+          <Button type="submit">Save DSC reminder policy</Button>
         </div>
       </form>
     </Card>

@@ -34,6 +34,14 @@ test("register → invite → import → calendar → remind → generate", asyn
   const acceptUrl = linkText!.trim();
   expect(acceptUrl).toContain("/accept?token=");
 
+  // ---- DSC expiry reminder policy (Partner-only firm setting) — set it now
+  // while logged in as the partner, then reload to prove the roundtrip.
+  await page.locator('input[name="days_before"]').fill("30, 7");
+  await page.locator('input[name="recipients"]').fill("compliance@firm.example");
+  await page.getByRole("button", { name: "Save DSC reminder policy" }).click();
+  await page.reload();
+  await expect(page.locator('input[name="days_before"]')).toHaveValue("30, 7");
+
   // ---- accept as the manager (fresh session)
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.goto(acceptUrl);

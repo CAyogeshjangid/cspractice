@@ -120,6 +120,13 @@ export interface DeadLetter {
   status: string;
   attempt_count: number;
   error: string | null;
+  subject_kind: string;
+  subject_label: string | null;
+}
+
+export interface DscReminderPolicy {
+  days_before: number[];
+  recipients: string[];
 }
 
 export interface ImportReport {
