@@ -28,6 +28,9 @@ class CompanyIn(BaseModel):
 class CompanyOut(CompanyIn):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
+    # settable via CompanyUpdate; surfaced here so the UI can show the tags
+    professional_group_id: uuid.UUID | None = None
+    industry_id: uuid.UUID | None = None
 
 
 class DeleteIn(BaseModel):

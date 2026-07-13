@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
-import type { Company, Director, ImportReport, Shareholder } from "../../api/types";
+import type { Company, Director, Disclosure, ImportReport, Shareholder, Taxonomy } from "../../api/types";
 import { Badge, Button, Card, Empty, ErrorText, Field, Input, Table } from "../../components/ds";
 
 type Tab = "directors" | "shareholders" | "fy";
@@ -108,6 +108,8 @@ function CompanyActions(props: { company: Company }) {
             const paidup = f.get("paidup_capital") as string;
             if (paidup) body.paidup_capital = Number(paidup);
             body.is_listed = f.get("is_listed") === "on";
+            body.professional_group_id = (f.get("professional_group_id") as string) || null;
+            body.industry_id = (f.get("industry_id") as string) || null;
             update.mutate(body);
           }}
         >
@@ -124,6 +126,13 @@ function CompanyActions(props: { company: Company }) {
               defaultValue={c.paidup_capital != null ? String(c.paidup_capital) : ""}
             />
           </Field>
+          <TaxonomyPicker
+            kind="professional-groups"
+            label="Professional group"
+            name="professional_group_id"
+            current={c.professional_group_id}
+          />
+          <TaxonomyPicker kind="industries" label="Industry" name="industry_id" current={c.industry_id} />
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_listed" defaultChecked={c.is_listed} /> Listed company
           </label>
@@ -133,6 +142,62 @@ function CompanyActions(props: { company: Company }) {
         </form>
       )}
     </div>
+  );
+}
+
+/** Firm-scoped tag select with inline creation (taxonomies are user-extensible, PRD §3). */
+function TaxonomyPicker(props: {
+  kind: "professional-groups" | "industries";
+  label: string;
+  name: string;
+  current: string | null;
+}) {
+  const queryClient = useQueryClient();
+  const [value, setValue] = useState(props.current ?? "");
+  const options = useQuery({
+    queryKey: ["taxonomy", props.kind],
+    queryFn: () => api.get<Taxonomy[]>(`/taxonomies/${props.kind}`),
+  });
+  const create = useMutation({
+    mutationFn: (name: string) => api.post<Taxonomy>(`/taxonomies/${props.kind}`, { name }),
+    onSuccess: (created) => {
+      setValue(created.id);
+      void queryClient.invalidateQueries({ queryKey: ["taxonomy", props.kind] });
+    },
+  });
+
+  return (
+    <Field label={props.label}>
+      <div className="flex gap-1">
+        <select
+          name={props.name}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm"
+        >
+          <option value="">— none —</option>
+          {(options.data ?? []).map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+          {/* keep a just-created tag selectable before the list refetches */}
+          {create.data && !options.data?.some((t) => t.id === create.data.id) && (
+            <option value={create.data.id}>{create.data.name}</option>
+          )}
+        </select>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            const name = window.prompt(`New ${props.label.toLowerCase()} name:`);
+            if (name?.trim()) create.mutate(name.trim());
+          }}
+        >
+          +
+        </Button>
+      </div>
+    </Field>
   );
 }
 
@@ -231,9 +296,13 @@ function useMasterIo(companyId: string, master: "directors" | "shareholders") {
   return { actions, reportView };
 }
 
+// Indian FY ends 31 March; FY is named by its ending year (JS months are 0-indexed)
+const currentFy = () => new Date().getFullYear() + (new Date().getMonth() >= 3 ? 1 : 0);
+
 function Directors(props: { companyId: string }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(null);
+  const [disclosureFor, setDisclosureFor] = useState<Director | null>(null);
   const directors = useQuery({
     queryKey: ["directors", props.companyId],
     queryFn: () => api.get<Director[]>(`/companies/${props.companyId}/directors`),
@@ -284,7 +353,7 @@ function Directors(props: { companyId: string }) {
       {directors.data?.length === 0 ? (
         <Empty>No directors recorded.</Empty>
       ) : (
-        <Table headers={["Name", "DIN", "Designation", "Active"]}>
+        <Table headers={["Name", "DIN", "Designation", "Active", ""]}>
           {(directors.data ?? []).map((d) => (
             <tr key={d.id}>
               <td className="px-2 py-2">{d.name}</td>
@@ -293,11 +362,97 @@ function Directors(props: { companyId: string }) {
               <td className="px-2 py-2">
                 {d.is_active ? <Badge tone="ok">active</Badge> : <Badge>ceased</Badge>}
               </td>
+              <td className="px-2 py-2 text-right">
+                <button
+                  onClick={() => setDisclosureFor(disclosureFor?.id === d.id ? null : d)}
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  {disclosureFor?.id === d.id ? "Close disclosures" : "Disclosures"}
+                </button>
+              </td>
             </tr>
           ))}
         </Table>
       )}
+      {disclosureFor && <DisclosurePanel companyId={props.companyId} director={disclosureFor} />}
     </Card>
+  );
+}
+
+/** Per-FY MBP-1 / DIR-8 / DIR-2 received dates for one director (PRD §4.3). */
+function DisclosurePanel(props: { companyId: string; director: Director }) {
+  const queryClient = useQueryClient();
+  const d = props.director;
+  const base = `/companies/${props.companyId}/directors/${d.id}/disclosures`;
+  const [fy, setFy] = useState(currentFy());
+  const [error, setError] = useState<unknown>(null);
+  const disclosures = useQuery({
+    queryKey: ["disclosures", d.id],
+    queryFn: () => api.get<Disclosure[]>(base),
+  });
+  const save = useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.put(`${base}/${fy}`, body),
+    onSuccess: () => {
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["disclosures", d.id] });
+    },
+    onError: setError,
+  });
+  const existing = disclosures.data?.find((r) => r.fy === fy);
+
+  const FIELDS = [
+    { name: "mbp1_received", label: "MBP-1 (interest in entities)" },
+    { name: "dir8_received", label: "DIR-8 (non-disqualification)" },
+    { name: "dir2_received", label: "DIR-2 (consent to act)" },
+  ] as const;
+
+  return (
+    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+      <p className="mb-2 text-sm font-medium">
+        Annual disclosures — {d.name} (dates the firm received each form)
+      </p>
+      <ErrorText error={error} />
+      <form
+        // remount when the FY or its stored row changes so defaults refresh
+        key={`${d.id}:${fy}:${existing ? existing.fy : "new"}`}
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          save.mutate(
+            Object.fromEntries(
+              FIELDS.map(({ name }) => [name, (f.get(name) as string) || null]),
+            ),
+          );
+        }}
+      >
+        <Field label="FY (ending year)">
+          <Input value={String(fy)} type="number" onChange={(v) => setFy(Number(v))} />
+        </Field>
+        {FIELDS.map(({ name, label }) => (
+          <Field key={name} label={label}>
+            <Input name={name} type="date" defaultValue={existing?.[name] ?? ""} />
+          </Field>
+        ))}
+        <Button type="submit">Save disclosures</Button>
+      </form>
+      {(disclosures.data ?? []).length > 0 && (
+        <div className="mt-3">
+          <Table headers={["FY", "MBP-1", "DIR-8", "DIR-2"]}>
+            {(disclosures.data ?? []).map((row) => (
+              <tr key={row.fy}>
+                <td className="px-2 py-2">{row.fy}</td>
+                {FIELDS.map(({ name }) => (
+                  <td key={name} className="px-2 py-2">
+                    {row[name] ? <Badge tone="ok">{row[name]}</Badge> : <Badge>pending</Badge>}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </Table>
+        </div>
+      )}
+    </div>
   );
 }
 

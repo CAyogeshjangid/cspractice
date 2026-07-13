@@ -101,6 +101,23 @@ async def test_taxonomies_firm_scoped_unique(firm, make_client) -> None:
     assert res.status_code == 201
 
 
+async def test_company_taxonomy_tagging_roundtrip(firm) -> None:
+    """Tags set via PUT /companies must come back on reads (M17 UI needs them)."""
+    cid = await _company(firm.partner)
+    group = (await post(firm.executive, "/taxonomies/professional-groups",
+                        {"name": "Audit clients"})).json()
+    industry = (await post(firm.executive, "/taxonomies/industries",
+                           {"name": "Textiles"})).json()
+    res = await post(firm.executive, f"/companies/{cid}",
+                     {"professional_group_id": group["id"], "industry_id": industry["id"]},
+                     method="PUT")
+    assert res.status_code == 200
+    assert res.json()["professional_group_id"] == group["id"]
+    fetched = (await firm.viewer.get(f"/api/v1/companies/{cid}")).json()
+    assert fetched["professional_group_id"] == group["id"]
+    assert fetched["industry_id"] == industry["id"]
+
+
 async def test_company_partial_update_with_audit_diff(firm) -> None:
     cid = await _company(firm.partner)
     res = await post(firm.executive, f"/companies/{cid}",

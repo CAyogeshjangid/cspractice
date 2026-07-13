@@ -62,6 +62,30 @@ test("register → invite → import → calendar → remind → generate", asyn
   // re-import of the same file is idempotent — skipped, never duplicated
   await page.locator('input[type="file"]').setInputFiles(`${FIXTURES}/directors.xlsx`);
   await expect(page.getByText(/Imported: 0 created, 2 already present/)).toBeVisible();
+
+  // ---- disclosures: record an MBP-1 receipt for a director, per FY
+  await page
+    .locator("tr", { hasText: "Asha Mehta" })
+    .getByRole("button", { name: "Disclosures" })
+    .click();
+  await page.locator('input[name="mbp1_received"]').fill("2026-04-15");
+  await page.getByRole("button", { name: "Save disclosures" }).click();
+  await expect(page.getByText("2026-04-15")).toBeVisible(); // history badge
+  await expect(page.getByText("pending").first()).toBeVisible(); // DIR-8 / DIR-2 outstanding
+
+  // ---- taxonomy tagging: create a professional group inline, tag the company
+  await page.getByRole("button", { name: "Edit company" }).click();
+  page.once("dialog", (d) => void d.accept("Audit clients"));
+  await page.getByRole("button", { name: "+", exact: true }).first().click();
+  await expect(page.locator('select[name="professional_group_id"]')).toHaveValue(/.+/);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  // the tag round-trips: reopen the form and the select shows the saved group
+  await page.getByRole("button", { name: "Edit company" }).click();
+  await expect(
+    page.locator('select[name="professional_group_id"] option:checked'),
+  ).toHaveText("Audit clients");
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+
   await page.getByRole("link", { name: "Companies" }).click();
 
   // ---- calendar: generate from the TEST-ONLY ruleset

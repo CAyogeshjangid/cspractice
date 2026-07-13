@@ -14,6 +14,21 @@ export interface Company {
   agm_date: string | null;
   is_listed: boolean;
   paidup_capital: number | null;
+  professional_group_id: string | null;
+  industry_id: string | null;
+}
+
+export interface Taxonomy {
+  id: string;
+  name: string;
+}
+
+export interface Disclosure {
+  director_id: string;
+  fy: number;
+  mbp1_received: string | null;
+  dir8_received: string | null;
+  dir2_received: string | null;
 }
 
 export interface Director {
